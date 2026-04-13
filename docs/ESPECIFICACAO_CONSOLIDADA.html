@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Especificação Consolidada — LegixTech</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-clean: #ffffff;
+            --bg-primary: #f9fafb;
+            --accent-primary: #1e40af;
+            --accent-secondary: #15803d;
+            --text-primary: #111827;
+            --text-secondary: #475569;
+            --text-tertiary: #9ca3af;
+            --border-color: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-clean);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #1e3a8a 100%);
+            color: white;
+            padding: 40px 16px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(30, 64, 175, 0.1);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+
+        /* Container */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        /* Overview Card */
+        .overview-card {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+            border-left: 4px solid var(--accent-primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .overview-card h2 {
+            color: var(--accent-primary);
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .principles {
+            margin-top: 16px;
+        }
+
+        .principles h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .principles ul {
+            list-style: none;
+        }
+
+        .principles li {
+            font-size: 14px;
+            padding: 4px 0;
+            color: var(--text-secondary);
+        }
+
+        .principles li:before {
+            content: "✓ ";
+            color: var(--accent-secondary);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        /* TOC */
+        .toc {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .toc h2 {
+            color: var(--accent-primary);
+            margin-bottom: 16px;
+            font-size: 18px;
+        }
+
+        .toc table {
+            width: 100%;
+            font-size: 14px;
+            border-collapse: collapse;
+        }
+
+        .toc td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .toc a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        /* UC Card */
+        .uc-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .uc-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .uc-header {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #1e3a8a 100%);
+            color: white;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .uc-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .uc-header p {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .toggle-icon {
+            font-size: 24px;
+            transition: transform 0.3s ease;
+        }
+
+        .uc-card.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .uc-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .uc-card.collapsed .uc-content {
+            max-height: 0;
+        }
+
+        .uc-body {
+            padding: 20px;
+        }
+
+        /* UC Stats */
+        .uc-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .uc-stat {
+            text-align: center;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+        }
+
+        .uc-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .uc-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section h4 {
+            color: var(--accent-primary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        table thead {
+            background: var(--bg-primary);
+        }
+
+        table th {
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table tr:hover {
+            background: var(--bg-primary);
+        }
+
+        /* List */
+        ul, ol {
+            margin-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        li {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-rf {
+            background: #dbeafe;
+            color: #0c4a6e;
+        }
+
+        .badge-rnf {
+            background: #fef3c7;
+            color: #78350f;
+        }
+
+        .badge-rn {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-ca {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+
+        /* Design System Card */
+        .design-system {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 32px 0;
+        }
+
+        .design-system h2 {
+            color: var(--accent-primary);
+            margin-bottom: 20px;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .color-item {
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-sample {
+            height: 80px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-name {
+            padding: 8px;
+            background: white;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 24px;
+            margin-top: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .footer p {
+            margin-bottom: 8px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .uc-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .uc-header {
+                padding: 16px;
+            }
+
+            .uc-header h3 {
+                font-size: 16px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            table th, table td {
+                padding: 6px 8px;
+            }
+
+            .color-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+
+        .btn-copy {
+            background: var(--accent-secondary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .btn-copy:hover {
+            background: #127a3f;
+        }
+
+        .flow-container {
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--accent-secondary);
+        }
+
+        .flow-container strong {
+            color: var(--accent-secondary);
+        }
+
+        .flow-container ol {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .flow-container li {
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>📋 Especificação de Requisitos Consolidada</h1>
+        <p>LegixTech — Monitoramento Legislativo Mobile | 10 Funcionalidades</p>
+    </div>
+
+    <div class="container">
+        <!-- Overview -->
+        <div class="overview-card">
+            <h2>🎯 Visão Geral do Projeto</h2>
+
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">10</div>
+                    <div class="stat-label">Use Cases</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">~70</div>
+                    <div class="stat-label">Requisitos Funcionais</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">~45</div>
+                    <div class="stat-label">Req. Não-Funcionais</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">~100</div>
+                    <div class="stat-label">Critérios de Aceita­ção</div>
+                </div>
+            </div>
+
+            <div class="principles">
+                <h3>Princípios Orientadores</h3>
+                <ul>
+                    <li>Linguagem clara, sem jargão jurídico</li>
+                    <li>Navegação intuitiva e responsiva</li>
+                    <li>Acessibilidade em primeiro lugar (WCAG 2.1 AA)</li>
+                    <li>Performance otimizada para iOS e Android</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- TOC -->
+        <div class="toc">
+            <h2>📑 Tabela de Conteúdos</h2>
+            <table>
+                <tr>
+                    <td><strong>UC</strong></td>
+                    <td><strong>Título</strong></td>
+                    <td><strong>Status</strong></td>
+                </tr>
+                <tr>
+                    <td><a href="#uc01">UC01</a></td>
+                    <td>Acessar Resumo Simples e Impacto</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc02">UC02</a></td>
+                    <td>Salvar Projetos na Lista de Monitoramento</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc03">UC03</a></td>
+                    <td>Navegação Básica Intuitiva</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc04">UC04</a></td>
+                    <td>Fazer Login no Aplicativo</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc05">UC05</a></td>
+                    <td>Configurar e Receber Notificações</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc06">UC06</a></td>
+                    <td>Buscar Conteúdo Rápido e Filtrar</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc07">UC07</a></td>
+                    <td>Visualizar Histórico de Votações</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc08">UC08</a></td>
+                    <td>Utilizar o Aplicativo Fácil / Onboarding</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc09">UC09</a></td>
+                    <td>Acessar Resumo Diário</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td><a href="#uc10">UC10</a></td>
+                    <td>Consultar o Chatbot para Dúvidas</td>
+                    <td>✅</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Design System -->
+        <div class="design-system">
+            <h2>🎨 Design System</h2>
+            
+            <h3 style="margin-bottom: 16px; color: var(--text-primary); font-size: 16px;">Paleta de Cores</h3>
+            <div class="color-grid">
+                <div class="color-item">
+                    <div class="color-sample" style="background: #ffffff; border: 2px solid #e5e7eb; color: #111827;">Clean</div>
+                    <div class="color-name">#ffffff</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-sample" style="background: #f9fafb;">Soft Gray</div>
+                    <div class="color-name">#f9fafb</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-sample" style="background: #1e40af;">Primary Blue</div>
+                    <div class="color-name">#1e40af</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-sample" style="background: #15803d;">Civic Green</div>
+                    <div class="color-name">#15803d</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-sample" style="background: #111827;">Near Black</div>
+                    <div class="color-name">#111827</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-sample" style="background: #475569;">Slate</div>
+                    <div class="color-name">#475569</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 20px 0 16px; color: var(--text-primary); font-size: 16px;">Tipografia & Espaçamento</h3>
+            <ul>
+                <li><strong>Font:</strong> Sans-serif (system font)</li>
+                <li><strong>Body:</strong> 14px–16px (mínimo 16px acessível)</li>
+                <li><strong>Line-height:</strong> 1.5</li>
+                <li><strong>Cards:</strong> 16px padding, 8px border-radius</li>
+                <li><strong>Touch Targets:</strong> Mínimo 44×44px</li>
+                <li><strong>Contraste:</strong> ≥ 4.5:1 (WCAG AA)</li>
+            </ul>
+        </div>
+
+        <!-- UC Cards (Dynamically Generated) -->
+        <div id="uc-container"></div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Última Atualização:</strong> 13 de Abril, 2026</p>
+            <p><strong>Versão:</strong> 1.0 — Completa (10 UCs)</p>
+            <p><strong>Status:</strong> ✅ Pronto para Desenvolvimento</p>
+            <p style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+                Dúvidas? Entre em contato com o time de Product.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const ucs = [
+            {
+                id: 'uc01',
+                numero: '01',
+                titulo: 'Acessar Resumo Simples e Impacto',
+                ator: 'Estudante Universitário (ex: Lucas Mendes)',
+                objetivo: 'Compreender o impacto prático de uma lei em máximo 3 parágrafos, sem termos jurídicos complexos',
+                rfs: 8,
+                rnfs: 6,
+                rns: 5,
+                cas: 11,
+                resumo: 'Permite que usuários acessem de forma rápida e clara o conteúdo e impacto de projetos de lei. Reduz a barreira de entrada ao conhecimento legislativo.',
+                rfDetails: [
+                    'O sistema DEVE renderizar aba "Entenda a Lei" como ativa por padrão',
+                    'O sistema DEVE exibir bloco "O Resumo" com exatamente 3 parágrafos',
+                    'O sistema DEVE ocultar texto integral (colapsável)',
+                    'O sistema DEVE exibir bloco "Quem é afetado?" com bullet points',
+                    'O sistema DEVE disponibilizar link "Acessar Texto Oficial"',
+                    'Clique DEVE redirecionar para portal (browser/webview)',
+                    'O sistema DEVE tratar falhas de API com mensagem amigável',
+                    'O sistema DEVE manter scroll fluido entre blocos'
+                ],
+                ca: ['Aba "Entenda a Lei" renderiza como ativa', 'Resumo com 3 parágrafos ≤120 chars', 'Bloco "Quem é afetado?" com 2-8 bullet points', 'Link abre em ≤1.5s sem erros', 'Mensagem erro em ≤3-4s se API indisponível']
+            },
+            {
+                id: 'uc02',
+                numero: '02',
+                titulo: 'Salvar Projetos na Lista de Monitoramento',
+                ator: 'Servidora Pública (ex: Carla Figueiredo)',
+                objetivo: 'Salvar projetos específicos para não perdê-los de vista',
+                rfs: 7,
+                rnfs: 5,
+                rns: 4,
+                cas: 9,
+                resumo: 'Permite que usuários salvem projetos para acompanhamento futuro. Projeto salvo centralizado em um ambiente de fácil acesso.',
+                rfDetails: [
+                    'Exibir botão "Salvar para Acompanhar" na tela de detalhes',
+                    'Clicar DEVE salvar projeto na lista pessoal',
+                    'Exibir notificação: "Projeto salvo no seu Perfil"',
+                    'Fornecer acesso via menu Perfil → "Projetos Salvos"',
+                    'Exibir lista com status mais recente de cada projeto',
+                    'Permitir remover projetos (botão/swipe)',
+                    'Sincronizar entre múltiplos dispositivos'
+                ],
+                ca: ['Botão muda cor; notificação exibida', 'Projeto aparece na lista com status', 'Empty state se lista vazia', 'Remover projeto sem erro']
+            },
+            {
+                id: 'uc03',
+                numero: '03',
+                titulo: 'Navegação Básica Intuitiva',
+                ator: 'Aposentada (ex: Dona Maria Lúcia)',
+                objetivo: 'Navegar pelo app com o mínimo de toques possíveis',
+                rfs: 6,
+                rnfs: 5,
+                rns: 3,
+                cas: 8,
+                resumo: 'Garante navegação intuitiva com ícones claros e ações de volta fluidas. Arquitetura simples para todas as idades.',
+                rfDetails: [
+                    'Bottom navigation com 4 ícones: Home, Busca, Salvos, Perfil',
+                    'Botão "Voltar" grande no canto superior esquerdo',
+                    'Manter posição de scroll ao voltar',
+                    'CTAs com mínimo 44×44px e texto legível',
+                    'Evitar sobreposição de telas',
+                    'Animação transição ≤300ms'
+                ],
+                ca: ['Bottom nav em sticky position', 'Seta "Voltar" aparece com animação', 'Scroll posição restaurada', 'CTAs com 44px mínimo']
+            },
+            {
+                id: 'uc04',
+                numero: '04',
+                titulo: 'Fazer Login no Aplicativo',
+                ator: 'Aposentada (ex: Dona Maria Lúcia)',
+                objetivo: 'Fazer login simples e rápido, sem senhas complexas',
+                rfs: 8,
+                rnfs: 6,
+                rns: 4,
+                cas: 10,
+                resumo: 'Oferece autenticação frictionless com Google OAuth, biometria e acesso visitante. Reduz barreira para usuários não-técnicos.',
+                rfDetails: [
+                    '3 botões: "Entrar com Google", "Entrar com Biometria", "Entrar como Visitante"',
+                    'Clique abre diálogo nativo do OS',
+                    'Processar OAuth sem solicitar senha',
+                    'Redirecionar para Home após auth',
+                    'Liberar acesso público como visitante',
+                    'Exibir aviso sobre funções desabilitadas em visitante',
+                    'Suportar logout em Perfil',
+                    'Persistir sessão por 30 dias'
+                ],
+                ca: ['3 botões exibidos com ícones', 'Dialog OAuth abre e autentica', 'Visitante com acesso limitado', 'Logout processa corretamente']
+            },
+            {
+                id: 'uc05',
+                numero: '05',
+                titulo: 'Configurar e Receber Notificações',
+                ator: 'Servidora Pública (ex: Carla Figueiredo)',
+                objetivo: 'Receber alertas sobre andamento de leis relevantes',
+                rfs: 9,
+                rnfs: 7,
+                rns: 5,
+                cas: 11,
+                resumo: 'Sistema de notificações personalizável que mantém usuários informados sobre mudanças em projetos salvos com controle total.',
+                rfDetails: [
+                    'Seção "Configurações de Notificação" em Perfil',
+                    'Toggles para: Projetos Salvos, Temas, Resumo Diário',
+                    'Solicitar permissão do OS (primeira vez)',
+                    'Disparar push quando projeto atualizado',
+                    'Toque em notificação abre projeto',
+                    'Desativar notificações de tema específico',
+                    'Manter histórico de 30 dias',
+                    'Agendar "Resumo Diário" (ex: 8h)',
+                    'Bloquear em horários customizáveis'
+                ],
+                ca: ['Toggles exibidos com 3 opções', 'Permissão do OS solicitada', 'Push recebida ≤2min', 'Projeto abre ao clicar notificação']
+            },
+            {
+                id: 'uc06',
+                numero: '06',
+                titulo: 'Buscar Conteúdo Rápido e Filtrar',
+                ator: 'Aposentada (ex: Dona Maria Lúcia)',
+                objetivo: 'Encontrar informações sobre temas do dia a dia',
+                rfs: 8,
+                rnfs: 6,
+                rns: 4,
+                cas: 10,
+                resumo: 'Sistema de busca robusto com autocomplete, filtros temáticos rápidos e resultados simplificados. Reduz atrito na descoberta.',
+                rfDetails: [
+                    'Barra busca em destaque com placeholder',
+                    'Tocar exibe "Filtros Rápidos" (≥6 categorias)',
+                    'Clique em filtro carrega resultados ≤800ms',
+                    '3+ chars dispara autocomplete ≤300ms',
+                    'Simplificar resultados: título, status, resumo',
+                    'Busca texto livre + ordenação',
+                    'Filtro por tipo de projeto',
+                    'Toque em resultado navega para detalhes'
+                ],
+                ca: ['Barra busca em destaque', 'Filtros Rápidos aparecem', 'Resultados carregam ≤800ms', 'Autocomplete em ≤300ms']
+            },
+            {
+                id: 'uc07',
+                numero: '07',
+                titulo: 'Visualizar Histórico de Votações de Políticos',
+                ator: 'Estudante Universitário (ex: Lucas Mendes)',
+                objetivo: 'Consultar perfil de parlamentar e histórico de votações',
+                rfs: 7,
+                rnfs: 5,
+                rns: 4,
+                cas: 9,
+                resumo: 'Permite examinar histórico de votações de políticos, promovendo transparência. Visualizações claras (verde/vermelho) indicam votos a favor/contra.',
+                rfDetails: [
+                    'Permitir pesquisa por parlamentar',
+                    'Exibir perfil com foto, partido, estado',
+                    'Timeline com histórico de votações',
+                    'Cards coloridos: verde=Favorável, vermelho=Contra',
+                    'Permitir filtro temático (ex: "Meio Ambiente")',
+                    'Clique navega para detalhes da lei',
+                    'Exibir motivo/comentário do voto'
+                ],
+                ca: ['Perfil com foto, partido, estado', 'Timeline com votações', 'Card verde/vermelho com rótulo', 'Filtro temático funciona']
+            },
+            {
+                id: 'uc08',
+                numero: '08',
+                titulo: 'Utilizar o Aplicativo Fácil / Onboarding',
+                ator: 'Aposentada (ex: Dona Maria Lúcia)',
+                objetivo: 'Aprender funções principais no primeiro acesso',
+                rfs: 7,
+                rnfs: 5,
+                rns: 3,
+                cas: 8,
+                resumo: 'Tutorial interativo com spotlight que ensina 3 funcionalidades principais. Essencial para usuários não-técnicos.',
+                rfDetails: [
+                    'Exibir tutorial automaticamente após login',
+                    '3 elementos destacados com spotlight',
+                    'Balão explicativo com "Entendi"',
+                    'Permitir "Pular Tutorial" em qualquer passo',
+                    'Mensagem sucesso: "Você está pronta!"',
+                    'Acessar novamente via Perfil',
+                    'Não forçar em logins subsequentes'
+                ],
+                ca: ['Tutorial aparece após login', 'Spotlight suave com balão', 'Botão "Entendi" (44×44px)', 'Pular funciona corretamente']
+            },
+            {
+                id: 'uc09',
+                numero: '09',
+                titulo: 'Acessar Resumo Diário',
+                ator: 'Servidora Pública (ex: Carla Figueiredo)',
+                objetivo: 'Consumir notícias legislativas importantes do dia',
+                rfs: 7,
+                rnfs: 6,
+                rns: 4,
+                cas: 9,
+                resumo: 'Resumo curado de 3-5 notícias destaques em formato Stories. Permite consumo em ≤2 minutos.',
+                rfDetails: [
+                    'Card "Resumo do Dia" em destaque na Home',
+                    'Mostrar 3 assuntos mais quentes',
+                    'Clique abre tela estilo Stories',
+                    'Cada story resume aprovação em 2 frases',
+                    'Deslizar horizontalmente para próximo',
+                    'Botões "Ver detalhes" / "Fechar" ao final',
+                    'Adapter para "Radar da Semana" se sem sessão'
+                ],
+                ca: ['Card "Resumo do Dia" em Home', 'Stories carregam', 'Deslizar funciona suave', 'Adaptação fim de semana']
+            },
+            {
+                id: 'uc10',
+                numero: '10',
+                titulo: 'Consultar o Chatbot para Dúvidas',
+                ator: 'Estudante Universitário (ex: Lucas Mendes)',
+                objetivo: 'Tirar dúvidas sobre funcionamento de leis em tempo real',
+                rfs: 8,
+                rnfs: 7,
+                rns: 5,
+                cas: 10,
+                resumo: 'Assistente IA conversacional que responde perguntas sobre termos legislativos em linguagem simples. Evita buscar no Google.',
+                rfDetails: [
+                    'Botão flutuante Chatbot (canto inferior direito)',
+                    'Clique abre chat sobrepondo parcialmente',
+                    'Mensagem boas-vindas + botões rápidos',
+                    'Digitar pergunta livre',
+                    'Respostas em linguagem informal',
+                    'Avaliar resposta ("Útil" / "Não foi útil")',
+                    'Se fora escopo: "Desculpe, ainda aprendendo..."',
+                    'Fechar sem perder posição anterior'
+                ],
+                ca: ['Botão flutuante visível', 'Chat abre correctamente', 'Resposta em ≤5s', 'Avaliação funciona', 'Close preserva posição']
+            }
+        ];
+
+        const container = document.getElementById('uc-container');
+
+        ucs.forEach(uc => {
+            const card = document.createElement('div');
+            card.className = 'uc-card';
+            card.id = uc.id;
+            card.innerHTML = `
+                <div class="uc-header" onclick="this.closest('.uc-card').classList.toggle('collapsed')">
+                    <div>
+                        <h3>UC${uc.numero} — ${uc.titulo}</h3>
+                        <p>👤 ${uc.ator}</p>
+                    </div>
+                    <div class="toggle-icon">▼</div>
+                </div>
+                <div class="uc-content">
+                    <div class="uc-body">
+                        <div class="section">
+                            <p><strong>🎯 Objetivo:</strong> ${uc.objetivo}</p>
+                        </div>
+
+                        <div class="uc-stats">
+                            <div class="uc-stat">
+                                <div class="uc-stat-value">${uc.rfs}</div>
+                                <div class="uc-stat-label">RFs</div>
+                            </div>
+                            <div class="uc-stat">
+                                <div class="uc-stat-value">${uc.rnfs}</div>
+                                <div class="uc-stat-label">RNFs</div>
+                            </div>
+                            <div class="uc-stat">
+                                <div class="uc-stat-value">${uc.rns}</div>
+                                <div class="uc-stat-label">RNs</div>
+                            </div>
+                            <div class="uc-stat">
+                                <div class="uc-stat-value">${uc.cas}</div>
+                                <div class="uc-stat-label">CAs</div>
+                            </div>
+                        </div>
+
+                        <div class="section">
+                            <h4>📌 Resumo Executivo</h4>
+                            <p>${uc.resumo}</p>
+                        </div>
+
+                        <div class="section">
+                            <h4>🔧 Requisitos Funcionais (RF)</h4>
+                            <ol>
+                                ${uc.rfDetails.map((rf, i) => `<li>${rf}</li>`).join('')}
+                            </ol>
+                        </div>
+
+                        <div class="section">
+                            <h4>✅ Critérios de Aceitação (Principais)</h4>
+                            <ul>
+                                ${uc.ca.map(ca => `<li>${ca}</li>`).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="section">
+                            <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 16px;">
+                                <em>Consulte o documento completo em Markdown para RNFs, Regras de Negócio, Fluxos Alternativos e Validações detalhadas.</em>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        // Collapse all by default
+        document.querySelectorAll('.uc-card').forEach((card, index) => {
+            if (index > 0) card.classList.add('collapsed');
+        });
+    </script>
+</body>
+</html>
