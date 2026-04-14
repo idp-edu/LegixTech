@@ -16,10 +16,10 @@ oficina-solucoes-moveis-template/
 ├── agents/                    # Agentes de IA configurados para o projeto
 │   ├── 1project-guardian.agent.md   # Guardião da arquitetura e segurança
 │   ├── 2database-architect.agent.md # Arquiteto do banco de dados
-│   ├── 3backend-agent.md            # Agente do backend (Django)
+│   ├── 3backend-agent.md            # Agente do backend (Python)
 │   ├── 4frontend-agent.md           # Agente do frontend (React)
 │   └── 5devsecops.agent.md          # Agente de deploy e infraestrutura
-├── backend/                   # Código do backend (Django + DRF)
+├── backend/                   # Código do backend (Python + FastApi)
 ├── frontend/                  # Código do frontend (React + TypeScript)
 └── README.md
 ```
@@ -93,7 +93,7 @@ O diretório `agents/` contém agentes de IA especializados, projetados para uso
 |--------|---------|------------------|
 | 🛡️ Project Guardian | `1project-guardian.agent.md` | Guardião da arquitetura geral, decisões de design e segurança do projeto |
 | 🗄️ Database Architect | `2database-architect.agent.md` | Design, validação e evolução do schema do banco de dados PostgreSQL |
-| ⚙️ Backend Agent | `3backend-agent.md` | APIs, serializers, regras de negócio no Django + DRF |
+| ⚙️ Backend Agent | `3backend-agent.md` | APIs, serializers, regras de negócio no Python |
 | 🎨 Frontend Agent | `4frontend-agent.md` | UI/UX, dashboards e componentes React + TypeScript |
 | 🔒 DevSecOps Agent | `5devsecops.agent.md` | Deploy no Render, infraestrutura, segurança e automação |
 
@@ -130,7 +130,7 @@ O GitHub Projects permite criar um **Roadmap visual** para organizar o progresso
 
 | Camada | Tecnologia |
 |--------|------------|
-| Backend | Django + Django REST Framework |
+| Backend | Python + FastApi |
 | Frontend | React + TypeScript |
 | Banco de Dados | PostgreSQL |
 | Hospedagem | Render |
