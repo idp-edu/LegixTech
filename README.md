@@ -134,6 +134,10 @@ O GitHub Projects permite criar um **Roadmap visual** para organizar o progresso
 | Frontend | React + TypeScript |
 | Banco de Dados | PostgreSQL |
 | Hospedagem | Render |
+
+---
+
+
 # ⚖️ LegixTech - Backend Engine
 
 Este diretório contém o núcleo de processamento, API e inteligência de dados do projeto **LegixTech**. A aplicação foi desenhada para servir como uma ponte eficiente entre dados jurídicos brutos e insights estruturados para o usuário final.
@@ -170,6 +174,7 @@ A escolha principal para este projeto foi o **FastAPI (Python)**.
 ### Pré-requisitos
 * Python 3.9+
 * Pip ou Poetry
+* FastApi
 
 ### Instalação
 1. Instale as dependências:
