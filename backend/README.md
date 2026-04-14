@@ -12,7 +12,7 @@ O backend deste projeto atua como o motor de processamento e distribuição de d
 * **🧠 Processamento e Inteligência (NLP):** Integração de modelos de Processamento de Linguagem Natural para classificação automática de processos e sumarização de textos jurídicos complexos.
 * **🔌 API RESTful:** Exposição de endpoints performáticos para que o frontend ou dashboards consumam dados filtrados em tempo real.
 * **🔐 Autenticação e Segurança:** Controle de acesso granular para diferentes perfis (pesquisadores, advogados e administradores).
-* **💾 Persistência de Dados:** Gerenciamento de banco de dados relacional (recomendado: PostgreSQL) para garantir a integridade das informações jurídicas.
+* **💾 Persistência de Dados:** Gerenciamento de banco de dados relacional (PostgreSQL) para garantir a integridade das informações jurídicas.
 
 ---
 
