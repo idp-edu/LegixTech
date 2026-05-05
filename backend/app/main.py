@@ -1,7 +1,12 @@
 from fastapi import FastAPI
+from app.routers import saved, notifications, daily_summary
 
-api = FastAPI()
+app = FastAPI(title="LegixTech API")
 
-@api.get("/")
+app.include_router(saved.router, prefix="/saved", tags=["Salvos"])
+app.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
+app.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
+
+@app.get("/")
 def root():
-    return {"Hi":"World"}
+    return {"status": "LegixTech API rodando"}
