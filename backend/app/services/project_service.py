@@ -40,7 +40,7 @@ async def buscar_detalhe_projeto(external_id: str):
         return None
 
 def get_projetos_salvos(db: Session, user_id: int):
-    from app.models.saved import SavedProject
+    from backend.app.routers.saved import SavedProject
     salvos = db.query(SavedProject).filter(
         SavedProject.user_id == user_id
     ).all()
