@@ -1,12 +1,40 @@
 from fastapi import FastAPI
-from app.routers import saved, notifications, daily_summary
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.database import engine, Base
+from app.routers import auth, projects, saved, ods
 
-app = FastAPI(title="LegixTech API")
+Base.metadata.create_all(bind=engine)
 
-app.include_router(saved.router, prefix="/saved", tags=["Salvos"])
-app.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
-app.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
+api = FastAPI(
+    title="LegixTech API",
+    description="Backend do aplicativo de monitoramento legislativo com classificação ODS",
+    version="2.0.0"
+)
 
-@app.get("/")
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+api.include_router(auth.router)
+api.include_router(projects.router)
+api.include_router(saved.router)
+api.include_router(ods.router)
+
+@api.get("/")
 def root():
-    return {"status": "LegixTech API rodando"}
+    return {
+        "app": "LegixTech API",
+        "version": "2.0.0",
+        "status": "online",
+        "endpoints": {
+            "autenticacao": "/auth",
+            "projetos": "/projetos",
+            "salvos": "/salvos",
+            "ods": "/ods",
+            "docs": "/docs"
+        }
+    }
