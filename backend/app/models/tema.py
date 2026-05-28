@@ -15,6 +15,3 @@ class Tema(Base):
     proposicoes = relationship(
         "Project", secondary="proposicao_tema", back_populates="temas"
     )
-    ods = relationship(
-        "ODS", secondary="tema_ods", back_populates="temas"
-    )

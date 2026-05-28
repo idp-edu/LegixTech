@@ -1,6 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine, Base
+
+# Importa models primeiro para o SQLAlchemy resolver os relacionamentos
+from app.models import user as user_model  # noqa
+from app.models import project as project_model  # noqa
+from app.models import saved as saved_model  # noqa
+from app.models.tema import Tema  # noqa
+from app.models.classificacao import Classificacao  # noqa
+from app.models.tag import Tag  # noqa
+from app.models import relationships  # noqa
+
+# Importa routers depois
 from app.routers import auth, projects, saved, ods
 
 Base.metadata.create_all(bind=engine)
@@ -38,3 +49,6 @@ def root():
             "docs": "/docs"
         }
     }
+
+# alias para compatibilidade com uvicorn e Render
+app = api
