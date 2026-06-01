@@ -18,6 +18,7 @@ from app.models.saved import SavedProject
 from app.models.tema import Tema
 from app.models.classificacao import Classificacao
 from app.models.tag import Tag
+from app.models.ods import Ods
 from app.models.relationships import proposicao_tema, tema_ods
 
 config = context.config

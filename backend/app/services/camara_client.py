@@ -50,6 +50,11 @@ async def listar_proposicoes(
     pagina: int = 1,
     itens: int = 20,
 ) -> dict:
+    # A API da Câmara usa "ano" em vez de dataApresentacaoInicio/Fim
+    ano: str | None = None
+    if dataApresentacaoInicio:
+        ano = dataApresentacaoInicio[:4]  # extrai "2024" de "2024-01-01"
+
     params: dict[str, Any] = {
         "pagina": pagina,
         "itens": itens,
@@ -58,21 +63,22 @@ async def listar_proposicoes(
     }
     if siglaTipo:
         params["siglaTipo"] = siglaTipo
-    if dataApresentacaoInicio:
-        params["dataApresentacaoInicio"] = dataApresentacaoInicio
-    if dataApresentacaoFim:
-        params["dataApresentacaoFim"] = dataApresentacaoFim
+    if ano:
+        params["ano"] = ano
     if keywords:
-        params["keywords"] = keywords
+        params["ementa"] = keywords  # único filtro de texto aceito pela API
 
     try:
         return await _get("/proposicoes", params)
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code if exc.response is not None else None
         if status == 400:
-            fallback = dict(params)
-            fallback.pop("ordenarPor", None)
-            fallback.pop("ordem", None)
+            # Fallback mínimo sem ordenação
+            fallback: dict[str, Any] = {"pagina": pagina, "itens": itens}
+            if siglaTipo:
+                fallback["siglaTipo"] = siglaTipo
+            if ano:
+                fallback["ano"] = ano
             return await _get("/proposicoes", fallback)
         if status in {502, 503, 504}:
             return {"dados": [], "links": [], "erro_upstream": status}
