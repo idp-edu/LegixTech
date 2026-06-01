@@ -9,6 +9,7 @@ from app.models import saved as saved_model  # noqa
 from app.models.tema import Tema  # noqa
 from app.models.classificacao import Classificacao  # noqa
 from app.models.tag import Tag  # noqa
+from app.models.ods import Ods  # noqa
 from app.models import relationships  # noqa
 
 # Importa routers depois
