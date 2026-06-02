@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import engine, Base
-
+from app.routers import auth, projects, saved, ods, notifications, daily_summary
 # Importa models primeiro para o SQLAlchemy resolver os relacionamentos
 from app.models import user as user_model  # noqa
 from app.models import project as project_model  # noqa
@@ -35,6 +35,8 @@ api.include_router(auth.router)
 api.include_router(projects.router)
 api.include_router(saved.router)
 api.include_router(ods.router)
+api.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
+api.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
 
 @api.get("/")
 def root():
@@ -47,6 +49,8 @@ def root():
             "projetos": "/projetos",
             "salvos": "/salvos",
             "ods": "/ods",
+            "notificacoes": "/notifications",
+            "resumo_diario": "/daily-summary",
             "docs": "/docs"
         }
     }
