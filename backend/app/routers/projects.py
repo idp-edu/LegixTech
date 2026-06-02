@@ -1,12 +1,22 @@
 """
 Endpoints de proposições: proxy enriquecido da API da Câmara dos Deputados.
+Cache-aside: busca no banco local primeiro, fallback para API da Câmara.
 """
+
 import asyncio
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.repositories.proposicao_repository import ProposicaoRepository
+from app.repositories.tag_repository import TagRepository
+from app.repositories.tema_repository import TemaRepository
 from app.services import camara_client as camara
 from app.services import ods_classifier
-from app.services.resumo_service import gerar_resumo, explicar_termo
+from app.services.proposicao_service import ProposicaoService
+from app.services.resumo_service import explicar_termo, gerar_resumo
 
 router = APIRouter(prefix="/projetos", tags=["Projetos"])
 
@@ -33,6 +43,8 @@ def _inferir_estagio(descricao: str) -> int:
     return 1
 
 
+# ─── LISTAGEM ────────────────────────────────────────────────────────────────
+
 @router.get("/")
 async def listar_projetos(
     q: Optional[str] = Query(None, description="Busca por palavra-chave"),
@@ -41,10 +53,34 @@ async def listar_projetos(
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
 ):
+    local = ProposicaoRepository.listar(db, skip=(pagina - 1) * por_pagina,
+                                        limit=por_pagina, tipo=tipo, ano=ano, q=q)
+    if local:
+        resultado = []
+        for p in local:
+            temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
+            ods_list = ods_classifier.classificar(p.ementa or "", temas)
+            item = {
+                "id": p.external_id,
+                "titulo": p.titulo,
+                "ementa": p.ementa,
+                "situacao": p.situacao,
+                "autor": p.autor,
+                "ano": p.ano,
+                "tipo": p.tipo,
+                "temas": temas,
+                "ods": ods_list,
+                "estagio_atual": _inferir_estagio(p.situacao or ""),
+                "estagios": ESTAGIOS,
+            }
+            if ods is None or any(o["numero"] == ods for o in ods_list):
+                resultado.append(item)
+        return {"dados": resultado, "total": len(resultado), "pagina": pagina, "fonte": "banco_local"}
+
     data_inicio = f"{ano}-01-01" if ano else None
     data_fim = f"{ano}-12-31" if ano else None
-
     try:
         raw = await camara.listar_proposicoes(
             siglaTipo=tipo,
@@ -82,7 +118,8 @@ async def listar_projetos(
             "ods": ods_list,
             "temas": temas,
             "estagio_atual": _inferir_estagio(
-                p.get("statusProposicao", {}).get("descricaoSituacao", "") if isinstance(p.get("statusProposicao"), dict) else ""
+                p.get("statusProposicao", {}).get("descricaoSituacao", "")
+                if isinstance(p.get("statusProposicao"), dict) else ""
             ),
             "estagios": ESTAGIOS,
         }
@@ -93,12 +130,18 @@ async def listar_projetos(
         "dados": resultado,
         "total": len(resultado),
         "pagina": pagina,
+        "fonte": "camara_api",
         "erro_upstream": raw.get("erro_upstream"),
     }
 
 
+# ─── ENDPOINTS FIXOS (antes do /{external_id}) ───────────────────────────────
+
 @router.get("/temas/disponiveis")
-def temas_disponiveis():
+def temas_disponiveis(db: Session = Depends(get_db)):
+    temas_db = TemaRepository.listar(db)
+    if temas_db:
+        return {"temas": [t.nome for t in temas_db]}
     return {
         "temas": [
             "Saúde", "Educação", "Economia", "Meio Ambiente",
@@ -110,32 +153,36 @@ def temas_disponiveis():
 
 @router.get("/glossario/termo/{termo}")
 def buscar_termo(termo: str):
-    """Explica um termo jurídico em linguagem simples."""
     return explicar_termo(termo)
 
 
+# ─── DETALHE (cache-aside com save automático) ───────────────────────────────
+
 @router.get("/{external_id}")
-async def detalhe_projeto(external_id: str):
+async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
+    resultado = await ProposicaoService.buscar_por_id(db, external_id)  # <-- await aqui
+
+    if not resultado:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    if resultado.get("fonte") == "banco_local":
+        temas = resultado.get("temas", [])
+        ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
+        return {**resultado, "ods": ods_list, "estagios": ESTAGIOS}
+
     try:
-        raw = await camara.obter_proposicao(int(external_id))
         autores_raw = await camara.obter_autores(int(external_id))
         temas_raw = await camara.obter_temas(int(external_id))
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Projeto não encontrado: {e}")
+        autores = autores_raw.get("dados", [])
+        temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
+    except Exception:
+        autores, temas = [], []
 
-    projeto = raw.get("dados", {})
-    autores = autores_raw.get("dados", [])
-    temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
-    ods_list = ods_classifier.classificar(projeto.get("ementa", ""), temas)
+    ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
+    return {**resultado, "autores": autores, "temas": temas, "ods": ods_list, "estagios": ESTAGIOS}
 
-    return {
-        **projeto,
-        "autores": autores,
-        "temas": temas,
-        "ods": ods_list,
-        "estagios": ESTAGIOS,
-    }
 
+# ─── TRAMITAÇÃO ───────────────────────────────────────────────────────────────
 
 @router.get("/{external_id}/tramitacao")
 async def tramitacao_projeto(external_id: str):
@@ -145,12 +192,7 @@ async def tramitacao_projeto(external_id: str):
         raise HTTPException(status_code=503, detail=f"Erro ao buscar tramitação: {e}")
 
     if raw.get("erro_upstream"):
-        return {
-            "estagio_atual": 1,
-            "estagios": ESTAGIOS,
-            "historico": [],
-            "indisponivel": True,
-        }
+        return {"estagio_atual": 1, "estagios": ESTAGIOS, "historico": [], "indisponivel": True}
 
     tramitacoes = raw.get("dados", [])
     estagio_atual = 1
@@ -175,9 +217,10 @@ async def tramitacao_projeto(external_id: str):
     return {"estagio_atual": estagio_atual, "estagios": ESTAGIOS, "historico": historico}
 
 
+# ─── RESUMO ACESSÍVEL ─────────────────────────────────────────────────────────
+
 @router.get("/{external_id}/resumo-acessivel")
 async def resumo_acessivel(external_id: str):
-    """Retorna resumo do projeto em linguagem simples, sem juridiquês."""
     try:
         raw = await camara.obter_proposicao(int(external_id))
     except Exception as e:
