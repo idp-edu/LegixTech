@@ -8,8 +8,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db
+from app.models.project import Project
 from app.repositories.proposicao_repository import ProposicaoRepository
 from app.repositories.tag_repository import TagRepository
 from app.repositories.tema_repository import TemaRepository
@@ -41,6 +43,28 @@ def _inferir_estagio(descricao: str) -> int:
         if palavra.lower() in desc.lower():
             return estagio
     return 1
+
+
+# ─── ESTATÍSTICAS ─────────────────────────────────────────────────────────────
+
+@router.get("/estatisticas")
+def get_estatisticas(db: Session = Depends(get_db)):
+    total = db.query(Project).count()
+
+    por_situacao = (
+        db.query(Project.situacao, func.count(Project.id))
+        .group_by(Project.situacao)
+        .all()
+    )
+
+    return {
+        "total": total,
+        "por_situacao": {
+            situacao: contagem
+            for situacao, contagem in por_situacao
+            if situacao is not None
+        }
+    }
 
 
 # ─── LISTAGEM ────────────────────────────────────────────────────────────────
@@ -160,7 +184,7 @@ def buscar_termo(termo: str):
 
 @router.get("/{external_id}")
 async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
-    resultado = await ProposicaoService.buscar_por_id(db, external_id)  # <-- await aqui
+    resultado = await ProposicaoService.buscar_por_id(db, external_id)
 
     if not resultado:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
