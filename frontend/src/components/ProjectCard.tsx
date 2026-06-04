@@ -14,8 +14,10 @@ interface ProjectCardProps {
   trending?: boolean;
   category: string;
   saved?: boolean;
+  canSave?: boolean;
   onSave?: (id: string) => void;
   onClick?: (id: string) => void;
+  onRequireAuth?: () => void;
 }
 
 export function ProjectCard({
@@ -26,8 +28,10 @@ export function ProjectCard({
   trending,
   category,
   saved,
+  canSave = true,
   onSave,
   onClick,
+  onRequireAuth,
 }: ProjectCardProps) {
   return (
     <Pressable
@@ -38,7 +42,10 @@ export function ProjectCard({
         <View className="flex-row flex-wrap items-center gap-2">
           <StatusBadge status={status} size="sm" />
           {trending && (
-            <View className="flex-row items-center gap-1 rounded px-2 py-1" style={{ backgroundColor: '#fee2e2' }}>
+            <View
+              className="flex-row items-center gap-1 rounded px-2 py-1"
+              style={{ backgroundColor: '#fee2e2' }}
+            >
               <TrendingUp size={12} color="#ef4444" />
               <Text className="text-xs font-medium" style={{ color: '#ef4444' }}>
                 Em Alta
@@ -46,19 +53,32 @@ export function ProjectCard({
             </View>
           )}
         </View>
+
         <Pressable
           onPress={(e) => {
-            e?.stopPropagation?.();
+            e.stopPropagation();
+
+            if (!canSave) {
+              onRequireAuth?.();
+              return;
+            }
+
             onSave?.(id);
           }}
           className="min-h-11 min-w-11 items-center justify-center -mr-2 -mt-2"
           hitSlop={8}
         >
-          <Bookmark size={20} color={saved ? '#1e40af' : '#6b7280'} fill={saved ? '#1e40af' : 'transparent'} />
+          <Bookmark
+            size={20}
+            color={saved ? '#1e40af' : '#6b7280'}
+            fill={saved ? '#1e40af' : 'transparent'}
+          />
         </Pressable>
       </View>
 
-      <Text className="mb-2 font-display text-base font-semibold leading-snug text-foreground">{title}</Text>
+      <Text className="mb-2 font-display text-base font-semibold leading-snug text-foreground">
+        {title}
+      </Text>
 
       <View className="flex-row items-center gap-4">
         <View className="flex-row items-center gap-1">

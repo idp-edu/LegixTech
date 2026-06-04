@@ -7,19 +7,28 @@ import { mockProjects } from '@/data/mockProjects';
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { savedProjects, savedPoliticians, logout, setShowOnboarding } = useApp();
+  const {
+    savedProjects,
+    savedPoliticians,
+    logout,
+    setShowOnboarding,
+  } = useApp();
 
   return (
     <ProfileScreen
-      onLogout={() => {
-        logout();
-        router.replace('/welcome');
+      onLogout={async () => {
+        await logout();
+        router.replace('/welcome' as never);
       }}
       onRestartTutorial={() => setShowOnboarding(true)}
-      onNavigateToSaved={() => router.push('/(tabs)/saved')}
+      onNavigateToSaved={() => router.push('/(tabs)/saved' as never)}
       savedProjects={mockProjects
-        .filter((p) => savedProjects.includes(p.id))
-        .map((p) => ({ id: p.id, title: p.title, status: p.status }))}
+        .filter((p) => savedProjects.includes(String(p.id ?? p.externalId ?? '')))
+        .map((p) => ({
+          id: String(p.id ?? p.externalId ?? ''),
+          title: p.title,
+          status: p.status ?? 'pending',
+        }))}
       followedPoliticians={mockPoliticians
         .filter((p) => savedPoliticians.includes(p.id))
         .map((p) => ({

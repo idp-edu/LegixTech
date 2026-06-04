@@ -1,18 +1,18 @@
-import { api } from "./api";
+import { api } from './api';
 
 export type Projeto = {
   id?: number;
   externalId?: string;
-  titulo: string;
-  ementa?: string;
-  situacao?: string;
-  autor?: string;
-  ano?: number;
-  tipo?: string;
-  temas?: string[];
+  title: string;
+  abstract?: string;
+  status?: string;
+  sponsor?: string;
+  year?: number;
+  type?: string;
+  themes?: string[];
   ods?: number[];
-  estagioAtual?: number;
-  fonte?: string;
+  currentStage?: number;
+  source?: string;
 };
 
 export type ProjetosResponse = {
@@ -35,12 +35,12 @@ type ListarProjetosParams = {
 function buildQuery(params: ListarProjetosParams) {
   const searchParams = new URLSearchParams();
 
-  if (params.q) searchParams.set("q", params.q);
-  if (params.tipo) searchParams.set("tipo", params.tipo);
-  if (params.ano) searchParams.set("ano", String(params.ano));
-  if (params.ods) searchParams.set("ods", String(params.ods));
-  if (params.pagina) searchParams.set("pagina", String(params.pagina));
-  if (params.porPagina) searchParams.set("porpagina", String(params.porPagina));
+  if (params.q) searchParams.set('q', params.q);
+  if (params.tipo) searchParams.set('tipo', params.tipo);
+  if (params.ano !== undefined) searchParams.set('ano', String(params.ano));
+  if (params.ods !== undefined) searchParams.set('ods', String(params.ods));
+  if (params.pagina !== undefined) searchParams.set('pagina', String(params.pagina));
+  if (params.porPagina !== undefined) searchParams.set('porPagina', String(params.porPagina));
 
   return searchParams.toString();
 }
@@ -52,7 +52,7 @@ async function request<T>(path: string): Promise<T> {
 export const projectsService = {
   listar: (params: ListarProjetosParams = {}) => {
     const query = buildQuery(params);
-    return request<ProjetosResponse>(`/projetos${query ? `?${query}` : ""}`);
+    return request<ProjetosResponse>(`/projetos${query ? `?${query}` : ''}`);
   },
 
   detalhe: (externalId: string) => {

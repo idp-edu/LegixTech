@@ -3,10 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import type { UserType } from '@/types/project';
-
 interface WelcomeScreenProps {
-  onLogin: (type: NonNullable<UserType>) => void;
+  onLogin: (type: 'google' | 'biometric' | 'guest') => void;
 }
 
 export function WelcomeScreen({ onLogin }: WelcomeScreenProps) {
@@ -32,8 +30,13 @@ export function WelcomeScreen({ onLogin }: WelcomeScreenProps) {
               <Scale size={48} color="white" />
             </LinearGradient>
           </View>
-          <Text className="mb-2 text-center font-display text-4xl font-bold text-foreground">LegixTech</Text>
-          <Text className="text-center text-muted-foreground">Monitoramento Legislativo Simplificado</Text>
+
+          <Text className="mb-2 text-center font-display text-4xl font-bold text-foreground">
+            LegixTech
+          </Text>
+          <Text className="text-center text-muted-foreground">
+            Monitoramento Legislativo Simplificado
+          </Text>
         </View>
 
         <View className="w-full max-w-sm gap-4">

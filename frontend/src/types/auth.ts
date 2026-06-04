@@ -20,3 +20,9 @@ export interface LoginGooglePayload {
   name?: string;
   photoUrl?: string;
 }
+
+export interface AuthResponse {
+  access_token: string;
+  token_type?: string;
+  user?: AuthUser;
+}

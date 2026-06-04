@@ -22,7 +22,7 @@ interface AppContextValue {
   isAuthenticated: boolean;
   isGuest: boolean;
   authMode: AuthMode;
-  user: AuthUser;
+  user: AuthUser | null;
   token: string | null;
   isDark: boolean;
   savedProjects: string[];
@@ -84,10 +84,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getUser<AuthUser>(),
       ]);
 
-      if (storedToken) {
+      if (storedToken && storedUser) {
         setTokenState(storedToken);
-        setUserState(storedUser ?? null);
-        setAuthMode(storedUser?.provider ?? 'password');
+        setUserState(storedUser);
+        setAuthMode(storedUser.provider ?? 'password');
+      } else {
+        await clearAuthStorage();
+        setTokenState(null);
+        setUserState(null);
+        setAuthMode(null);
       }
 
       setIsHydrated(true);

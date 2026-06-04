@@ -14,10 +14,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { method = 'GET', body, token, auth = true } = options;
 
   const headers: HeadersInit = {
+    Accept: 'application/json',
     'Content-Type': 'application/json',
   };
 
-  const authToken = token || (auth ? await getToken() : null);
+  const authToken = token ?? (auth ? await getToken() : null);
 
   if (authToken) {
     headers.Authorization = `Bearer ${authToken}`;
@@ -29,12 +30,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  const contentType = response.headers.get('content-type');
-  const isJson = contentType?.includes('application/json');
+  const contentType = response.headers.get('content-type') ?? '';
+  const isJson = contentType.includes('application/json');
 
   if (!response.ok) {
-    const errorPayload = isJson ? await response.json().catch(() => null) : null;
-    const message = errorPayload?.detail || errorPayload?.message || `Erro HTTP ${response.status}`;
+    let message = `Erro HTTP ${response.status}`;
+
+    if (isJson) {
+      const errorPayload = await response.json().catch(() => null);
+      message = errorPayload?.detail || errorPayload?.message || message;
+    }
+
     throw new Error(message);
   }
 

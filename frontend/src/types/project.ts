@@ -1,16 +1,16 @@
 export type ProjectStatus = 'active' | 'pending' | 'archived' | 'approved';
 
 export interface Project {
-  id?: string;
+  id?: number;
   externalId?: string;
-  titulo: string;
-  ementa?: string;
-  situacao?: string;
-  autor?: string;
-  ano?: number;
-  tipo?: string;
-  temas?: string[];
+  title: string;
+  abstract?: string;
+  status?: ProjectStatus;
+  sponsor?: string;
+  year?: number;
+  type?: string;
+  themes?: string[];
   ods?: number[];
-  estagioAtual?: number;
-  fonte?: string;
+  currentStage?: number;
+  source?: string;
 }

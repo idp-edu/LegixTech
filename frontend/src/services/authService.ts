@@ -1,54 +1,34 @@
 import { api } from './api';
 import { clearAuthStorage, saveToken, saveUser } from './storage';
-
-export type AuthMode = 'password' | 'google';
-
-export type AuthUser = {
-  id?: string;
-  name?: string;
-  email?: string;
-  avatarUrl?: string;
-  photoUrl?: string;
-  provider?: AuthMode;
-};
-
-export type AuthResponse = {
-  access_token: string;
-  token_type?: string;
-  user?: AuthUser;
-};
-
-export type LoginPasswordPayload = {
-  email: string;
-  password: string;
-};
-
-export type LoginGooglePayload = {
-  id_token: string;
-  email?: string;
-  name?: string;
-  photoUrl?: string;
-};
+import type {
+  AuthResponse,
+  AuthUser,
+  LoginGooglePayload,
+  LoginPasswordPayload,
+} from '@/types/auth';
 
 async function persistAuth(response: AuthResponse) {
-  if (response.access_token) {
-    await saveToken(response.access_token);
+  const token = response.access_token;
+  const user = response.user ?? null;
+
+  if (token) {
+    await saveToken(token);
   }
 
-  if (response.user) {
-    await saveUser(response.user);
+  if (user) {
+    await saveUser(user);
   }
 }
 
 export const authService = {
   async loginWithPassword(payload: LoginPasswordPayload) {
-    const response = await api.post<AuthResponse>('/auth/login', payload);
+    const response = await api.post<AuthResponse>('/auth/login', payload, undefined, false);
     await persistAuth(response);
     return response;
   },
 
   async loginWithGoogle(payload: LoginGooglePayload) {
-    const response = await api.post<AuthResponse>('/auth/google', payload);
+    const response = await api.post<AuthResponse>('/auth/google', payload, undefined, false);
     await persistAuth(response);
     return response;
   },
