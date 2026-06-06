@@ -4,7 +4,6 @@ import { SavedProjects } from '@/components/SavedProjects';
 import { useApp } from '@/context/AppContext';
 import { mockPoliticians } from '@/data/mockPoliticians';
 import { mockProjects } from '@/data/mockProjects';
-import type { ProjectStatus } from '@/types/project';
 
 export default function SavedTab() {
   const router = useRouter();
@@ -17,15 +16,7 @@ export default function SavedTab() {
     showToastMsg,
   } = useApp();
 
-  const projects = mockProjects
-    .filter((p) => savedProjects.includes(String(p.id ?? p.externalId ?? '')))
-    .map((project) => ({
-      id: String(project.id ?? project.externalId ?? ''),
-      title: project.title,
-      year: String(project.year ?? ''),
-      status: (project.status ?? 'pending') as ProjectStatus,
-      category: project.source ?? project.type ?? 'Projeto',
-    }));
+  const projects = mockProjects.filter((p) => savedProjects.includes(p.id));
 
   const requireLogin = () => {
     showToastMsg('Faça login para acessar e gerenciar seus itens salvos.');

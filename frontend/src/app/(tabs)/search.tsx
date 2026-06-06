@@ -4,7 +4,6 @@ import { SearchScreen } from '@/components/SearchScreen';
 import { useApp } from '@/context/AppContext';
 import { mockPoliticians } from '@/data/mockPoliticians';
 import { mockProjects } from '@/data/mockProjects';
-import type { ProjectStatus } from '@/types/project';
 
 export default function SearchTab() {
   const router = useRouter();
@@ -17,21 +16,13 @@ export default function SearchTab() {
     showToastMsg,
   } = useApp();
 
-  const projects = mockProjects.map((project) => ({
-    id: String(project.id ?? project.externalId ?? ''),
-    title: project.title,
-    year: String(project.year ?? ''),
-    status: (project.status ?? 'pending') as ProjectStatus,
-    category: project.source ?? project.type ?? 'Projeto',
-  }));
-
   const requireLogin = () => {
     showToastMsg('Faça login para salvar projetos e seguir parlamentares.');
   };
 
   return (
     <SearchScreen
-      projects={projects}
+      projects={mockProjects}
       politicians={mockPoliticians}
       savedProjects={savedProjects}
       savedPoliticians={savedPoliticians}

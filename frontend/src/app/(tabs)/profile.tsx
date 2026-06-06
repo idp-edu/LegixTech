@@ -23,11 +23,11 @@ export default function ProfileTab() {
       onRestartTutorial={() => setShowOnboarding(true)}
       onNavigateToSaved={() => router.push('/(tabs)/saved' as never)}
       savedProjects={mockProjects
-        .filter((p) => savedProjects.includes(String(p.id ?? p.externalId ?? '')))
+        .filter((p) => savedProjects.includes(p.id))
         .map((p) => ({
-          id: String(p.id ?? p.externalId ?? ''),
+          id: p.id,
           title: p.title,
-          status: p.status ?? 'pending',
+          status: p.status,
         }))}
       followedPoliticians={mockPoliticians
         .filter((p) => savedPoliticians.includes(p.id))
