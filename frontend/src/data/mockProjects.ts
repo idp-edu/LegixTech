@@ -1,6 +1,6 @@
-import type { Project } from '@/types/project';
+import type { UiProject } from '@/types/project';
 
-export const mockProjects: Project[] = [
+export const mockProjects: UiProject[] = [
   {
     id: '1',
     title: 'Lei de Acessibilidade e Custo da Saúde',
@@ -10,13 +10,15 @@ export const mockProjects: Project[] = [
     category: 'Saúde',
     summary:
       'Este projeto visa expandir a cobertura de saúde para comunidades carentes, fornecendo subsídios para famílias de baixa renda e estabelecendo novos centros de saúde comunitários em áreas rurais.',
+    sponsor: 'Sen. Maria Silva',
+    themes: ['Saúde', 'Inclusão Social'],
+    ods: [3, 10],
     impact: [
       'Reduz custos de saúde para famílias com renda abaixo de 200% da linha de pobreza federal',
       'Estabelece 50 novos centros de saúde comunitários em municípios rurais',
       'Fornece incentivos fiscais para profissionais de saúde que atendem áreas carentes',
     ],
     affected: ['Famílias de baixa renda', 'Comunidades rurais', 'Profissionais de saúde', 'Operadoras de planos'],
-    sponsor: 'Sen. Maria Silva',
     introduced: '15 de Janeiro de 2026',
   },
   {
@@ -27,13 +29,15 @@ export const mockProjects: Project[] = [
     category: 'Meio Ambiente',
     summary:
       'Legislação para acelerar a transição para energia renovável, fornecendo créditos fiscais para empresas de energia limpa e financiando programas de capacitação profissional.',
+    sponsor: 'Dep. David Chen',
+    themes: ['Meio Ambiente', 'Emprego'],
+    ods: [7, 8, 13],
     impact: [
       'Cria estimados 100.000 novos empregos no setor de energia renovável',
       'Fornece R$ 25 bilhões em créditos fiscais para projetos de energia solar e eólica',
       'Estabelece programas de capacitação em empregos verdes em 25 estados',
     ],
     affected: ['Empresas de energia', 'Trabalhadores', 'Grupos ambientais', 'Governos locais'],
-    sponsor: 'Dep. David Chen',
     introduced: '3 de Fevereiro de 2026',
   },
   {
@@ -45,13 +49,15 @@ export const mockProjects: Project[] = [
     category: 'Tecnologia',
     summary:
       'Legislação abrangente de privacidade de dados que exige que empresas obtenham consentimento explícito antes de coletar dados pessoais e estabelece penalidades para vazamentos de dados.',
+    sponsor: 'Sen. Sarah Williams',
+    themes: ['Tecnologia', 'Direitos Digitais'],
+    ods: [16, 17],
     impact: [
       'Exige consentimento opt-in para todas as atividades de coleta de dados',
       'Estabelece direito à exclusão de dados para todos os usuários',
       'Impõe multas de até 4% da receita anual por violações de privacidade',
     ],
     affected: ['Empresas de tecnologia', 'Consumidores', 'Corretores de dados', 'Empresas de marketing'],
-    sponsor: 'Sen. Sarah Williams',
     introduced: '10 de Março de 2026',
   },
   {
@@ -62,13 +68,15 @@ export const mockProjects: Project[] = [
     category: 'Educação',
     summary:
       'Aumenta o financiamento federal para educação básica com foco em programas STEM, salários de professores e melhorias na infraestrutura escolar.',
+    sponsor: 'Dep. Michael Thompson',
+    themes: ['Educação', 'Infraestrutura'],
+    ods: [4, 10],
     impact: [
       'Aumenta o financiamento por aluno em 15% em todo o país',
       'Eleva salários mínimos de professores para R$ 5.000 mensais',
       'Aloca R$ 50 bilhões para melhorias na infraestrutura escolar',
     ],
     affected: ['Professores', 'Estudantes', 'Distritos escolares', 'Pais'],
-    sponsor: 'Dep. Michael Thompson',
     introduced: '22 de Junho de 2025',
   },
   {
@@ -79,13 +87,15 @@ export const mockProjects: Project[] = [
     category: 'Economia',
     summary:
       'Fornece assistência financeira e alívio fiscal para pequenas empresas afetadas por desafios econômicos, incluindo subsídios e empréstimos com juros baixos.',
+    sponsor: 'Sen. Roberto Martinez',
+    themes: ['Economia', 'Empreendedorismo'],
+    ods: [8, 9],
     impact: [
       'Oferece até R$ 250.000 em subsídios para pequenas empresas elegíveis',
       'Fornece empréstimos com 0% de juros nos primeiros dois anos',
       'Reduz impostos sobre folha de pagamento em 25% para empresas com menos de 50 funcionários',
     ],
     affected: ['Proprietários de pequenas empresas', 'Empreendedores', 'Economias locais', 'Bancos'],
-    sponsor: 'Sen. Roberto Martinez',
     introduced: '28 de Janeiro de 2026',
   },
   {
@@ -96,13 +106,15 @@ export const mockProjects: Project[] = [
     category: 'Habitação',
     summary:
       'Legislação para aumentar a oferta de moradia acessível através de incentivos para construtoras e financiamento para projetos de habitação pública.',
+    sponsor: 'Dep. Jennifer Lee',
+    themes: ['Habitação', 'Inclusão Social'],
+    ods: [11, 10],
     impact: [
       'Financia construção de 250.000 unidades habitacionais populares',
       'Fornece créditos fiscais para construtoras que constroem moradias de baixa renda',
       'Estabelece proteções de controle de aluguel em áreas de alto custo',
     ],
     affected: ['Inquilinos', 'Compradores de imóveis', 'Construtoras', 'Governos locais'],
-    sponsor: 'Dep. Jennifer Lee',
     introduced: '5 de Agosto de 2025',
   },
 ];

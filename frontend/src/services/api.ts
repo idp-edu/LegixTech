@@ -24,11 +24,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.Authorization = `Bearer ${authToken}`;
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error('Não foi possível conectar ao servidor.');
+  }
 
   const contentType = response.headers.get('content-type') ?? '';
   const isJson = contentType.includes('application/json');
@@ -38,7 +44,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
     if (isJson) {
       const errorPayload = await response.json().catch(() => null);
-      message = errorPayload?.detail || errorPayload?.message || message;
+      message =
+        errorPayload?.detail ||
+        errorPayload?.message ||
+        errorPayload?.error ||
+        message;
     }
 
     throw new Error(message);
