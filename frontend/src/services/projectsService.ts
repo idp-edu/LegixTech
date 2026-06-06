@@ -1,29 +1,6 @@
 import { api } from './api';
 import type { ApiProject, ApiProjectsResponse } from '@/types/project';
 
-export type Projeto = {
-  id?: number;
-  externalId?: string;
-  title: string;
-  abstract?: string;
-  status?: string;
-  sponsor?: string;
-  year?: number;
-  type?: string;
-  themes?: string[];
-  ods?: number[];
-  currentStage?: number;
-  source?: string;
-};
-
-export type ProjetosResponse = {
-  dados: Projeto[];
-  total: number;
-  pagina: number;
-  fonte?: string;
-  erro_upstream?: boolean | string;
-};
-
 type ListarProjetosParams = {
   q?: string;
   tipo?: string;
@@ -53,11 +30,11 @@ async function request<T>(path: string): Promise<T> {
 export const projectsService = {
   listar: (params: ListarProjetosParams = {}) => {
     const query = buildQuery(params);
-    return request<ProjetosResponse>(`/projetos${query ? `?${query}` : ''}`);
+    return request<ApiProjectsResponse>(`/projetos${query ? `?${query}` : ''}`);
   },
 
   detalhe: (externalId: string) => {
-    return request<Projeto>(`/projetos/${externalId}`);
+    return request<ApiProject>(`/projetos/${externalId}`);
   },
 
   tramitacao: (externalId: string) => {
