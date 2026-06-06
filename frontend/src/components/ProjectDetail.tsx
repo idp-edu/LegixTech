@@ -12,12 +12,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getODSColorByNumber } from '@/data/odsMapping';
-import type { Project } from '@/types/project';
+import type { UiProject } from '@/types/project';
 
 import { StatusBadge } from './StatusBadge';
 
 interface ProjectDetailProps {
-  project: Project;
+  project: UiProject;
   onBack: () => void;
   onChatbotClick?: () => void;
 }
@@ -85,7 +85,7 @@ export function ProjectDetail({ project, onBack, onChatbotClick }: ProjectDetail
         <View className="gap-3">
           <Text className="font-display text-lg font-bold text-foreground">O Resumo</Text>
           <Text className="leading-relaxed text-foreground">
-            {project.abstract ?? 'Resumo não disponível para este projeto.'}
+            {project.summary ?? 'Resumo não disponível para este projeto.'}
           </Text>
           <Text className="text-xs italic text-muted-foreground">Resumo exibido a partir dos dados da API</Text>
         </View>
