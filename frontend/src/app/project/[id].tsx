@@ -1,9 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { ProjectDetail } from '@/components/ProjectDetail';
 import { useApp } from '@/context/AppContext';
-import { mockProjects } from '@/data/mockProjects';
+import { useProject } from '@/hooks/useProject';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -11,18 +11,35 @@ export default function ProjectDetailScreen() {
   const { isGuest, openChatbot, showToastMsg } = useApp();
 
   const projectId = Array.isArray(id) ? id[0] : id;
+  const { project, loading, error } = useProject(projectId);
 
-  const project = mockProjects.find(
-    (p) =>
-      String(p.id ?? '') === String(projectId ?? '') ||
-      String(p.externalId ?? '') === String(projectId ?? ''),
-  );
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="mb-4 text-center text-foreground">{error}</Text>
+        <Text className="text-primary" onPress={() => router.back()}>
+          Voltar
+        </Text>
+      </View>
+    );
+  }
 
   if (!project) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="mb-4 text-center text-foreground">
           Projeto não encontrado.
+        </Text>
+        <Text className="text-primary" onPress={() => router.back()}>
+          Voltar
         </Text>
       </View>
     );
