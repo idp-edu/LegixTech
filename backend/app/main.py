@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import engine, Base
+from app.core.database import Base
 from app.routers import auth, projects, saved, ods, notifications, daily_summary
 
 # Importa models primeiro para o SQLAlchemy resolver os relacionamentos
@@ -13,7 +13,7 @@ from app.models.tag import Tag  # noqa
 from app.models.ods import Ods  # noqa
 from app.models import relationships  # noqa
 
-Base.metadata.create_all(bind=engine)
+
 
 api = FastAPI(
     title="LegixTech API",
