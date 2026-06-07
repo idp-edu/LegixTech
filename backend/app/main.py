@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base
-from app.routers import auth, proposicoes, projects, saved, ods, notifications, daily_summary, politicians
+from app.routers import auth, proposicoes, votacoes, partidos, deputados, eventos, frentes, orgaos, blocos, legislaturas, projects, saved, ods, notifications, daily_summary, politicians
 
 # Importa models primeiro para o SQLAlchemy resolver os relacionamentos
 from app.models import user as user_model  # noqa
@@ -40,6 +40,14 @@ api.include_router(notifications.router, prefix="/notifications", tags=["Notific
 api.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
 api.include_router(politicians.router)
 api.include_router(proposicoes.router)
+api.include_router(votacoes.router)
+api.include_router(partidos.router)
+api.include_router(deputados.router)
+api.include_router(eventos.router)
+api.include_router(frentes.router)
+api.include_router(orgaos.router)
+api.include_router(blocos.router)
+api.include_router(legislaturas.router)
 
 @api.get("/")
 def root():
