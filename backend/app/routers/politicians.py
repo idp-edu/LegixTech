@@ -284,3 +284,15 @@ def meus_politicos_salvos(
             for s in salvos
         ],
     }
+
+
+# ── Notificações ───────────────────────────────────────────────────────────
+from app.services import politician_notification_service
+
+@router.post("/notificacoes/verificar")
+def verificar_notificacoes_politicos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    resultado = politician_notification_service.verificar_novos_projetos(db)
+    return resultado
