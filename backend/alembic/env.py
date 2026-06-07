@@ -21,6 +21,8 @@ from app.models.tag import Tag
 from app.models.ods import Ods
 from app.models.notification import Notification  # noqa
 from app.models.relationships import proposicao_tema, tema_ods
+from app.models.politician import Politician  # noqa
+from app.models.politician_vote import PoliticianVote  # noqa
 
 config = context.config
 
