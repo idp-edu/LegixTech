@@ -14,6 +14,7 @@ from app.models.ods import Ods  # noqa
 from app.models import relationships  # noqa
 from app.models.politician import Politician  # noqa
 from app.models.politician_vote import PoliticianVote  # noqa
+from app.models.saved_politician import SavedPolitician  # noqa
 
 
 

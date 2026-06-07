@@ -25,3 +25,5 @@ class Politician(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     votes = relationship("PoliticianVote", back_populates="politician")
+
+    saved_by = relationship("SavedPolitician", back_populates="politician")

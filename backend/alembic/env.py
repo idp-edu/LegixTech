@@ -23,6 +23,7 @@ from app.models.notification import Notification  # noqa
 from app.models.relationships import proposicao_tema, tema_ods
 from app.models.politician import Politician  # noqa
 from app.models.politician_vote import PoliticianVote  # noqa
+from app.models.saved_politician import SavedPolitician  # noqa
 
 config = context.config
 

@@ -210,3 +210,77 @@ def votacoes_do_politico(
         "total": len(dados),
         "votacoes": dados,
     }
+
+
+# ── Favoritar ──────────────────────────────────────────────────────────────
+from app.models.saved_politician import SavedPolitician
+from app.core.security import get_current_user
+from app.models.user import User
+from sqlalchemy.exc import IntegrityError
+
+@router.post("/{external_id}/salvar")
+def salvar_politico(
+    external_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    politico = _buscar_ou_criar_politico(external_id, db)
+    salvo = SavedPolitician(user_id=current_user.id, politician_id=politico.id)
+    db.add(salvo)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Político já favoritado")
+    return {"mensagem": f"{politico.name} adicionado aos favoritos"}
+
+
+@router.delete("/{external_id}/salvar")
+def remover_politico_salvo(
+    external_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    politico = db.query(Politician).filter(Politician.external_id == external_id).first()
+    if not politico:
+        raise HTTPException(status_code=404, detail="Político não encontrado")
+    salvo = (
+        db.query(SavedPolitician)
+        .filter(
+            SavedPolitician.user_id == current_user.id,
+            SavedPolitician.politician_id == politico.id,
+        )
+        .first()
+    )
+    if not salvo:
+        raise HTTPException(status_code=404, detail="Político não está nos favoritos")
+    db.delete(salvo)
+    db.commit()
+    return {"mensagem": f"{politico.name} removido dos favoritos"}
+
+
+@router.get("/salvos/meus")
+def meus_politicos_salvos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    salvos = (
+        db.query(SavedPolitician)
+        .filter(SavedPolitician.user_id == current_user.id)
+        .all()
+    )
+    return {
+        "total": len(salvos),
+        "politicos": [
+            {
+                "id": s.politician.id,
+                "external_id": s.politician.external_id,
+                "nome": s.politician.name,
+                "partido": s.politician.party,
+                "estado": s.politician.state,
+                "foto": s.politician.photo_url,
+                "favoritado_em": s.saved_at,
+            }
+            for s in salvos
+        ],
+    }
