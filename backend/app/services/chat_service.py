@@ -2,7 +2,13 @@ from google import genai
 from google.genai import types
 from app.core.config import settings
 
-_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    return _client
 
 
 def gerar_resposta(mensagem: str, contexto_projeto: str | None = None) -> str:
@@ -16,7 +22,7 @@ def gerar_resposta(mensagem: str, contexto_projeto: str | None = None) -> str:
     else:
         prompt = f"{prompt_sistema}\n\nPergunta: {mensagem}"
 
-    response = _client.models.generate_content(
+    response = get_client().models.generate_content(
         model="gemini-2.0-flash",
         contents=prompt,
         config=types.GenerateContentConfig(

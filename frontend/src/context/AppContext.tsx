@@ -67,7 +67,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null);
   const [token, setTokenState] = useState<string | null>(null);
 
-  const [isDark, setIsDark] = useState(systemScheme === 'dark');
+  const [isDark, setIsDark] = useState(false);
   const [savedProjects, setSavedProjects] = useState<string[]>([]);
   const [savedPoliticians, setSavedPoliticians] = useState<string[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
