@@ -27,3 +27,4 @@ class Politician(Base):
     votes = relationship("PoliticianVote", back_populates="politician")
 
     saved_by = relationship("SavedPolitician", back_populates="politician")
+    followed_by = relationship("FollowedPolitician", back_populates="politician")

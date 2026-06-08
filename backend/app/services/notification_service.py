@@ -2,10 +2,12 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.notification import Notification
 
-def listar_notificacoes(user_id: str, db: Session):
+
+def listar_notificacoes(user_id: int, db: Session):
     return db.query(Notification).filter(Notification.user_id == user_id).all()
 
-def marcar_como_lida(notification_id: int, user_id: str, db: Session):
+
+def marcar_como_lida(notification_id: int, user_id: int, db: Session):
     notif = db.query(Notification).filter(
         Notification.id == notification_id,
         Notification.user_id == user_id
@@ -17,7 +19,8 @@ def marcar_como_lida(notification_id: int, user_id: str, db: Session):
     db.refresh(notif)
     return {"message": "Notificação marcada como lida"}
 
-def deletar_notificacao(notification_id: int, user_id: str, db: Session):
+
+def deletar_notificacao(notification_id: int, user_id: int, db: Session):
     notif = db.query(Notification).filter(
         Notification.id == notification_id,
         Notification.user_id == user_id
