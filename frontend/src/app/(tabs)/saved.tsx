@@ -8,6 +8,7 @@ import { mockProjects } from '@/data/mockProjects';
 export default function SavedTab() {
   const router = useRouter();
   const {
+    isGuest,
     savedProjects,
     savedPoliticians,
     toggleSaveProject,
@@ -17,16 +18,32 @@ export default function SavedTab() {
 
   const projects = mockProjects.filter((p) => savedProjects.includes(p.id));
 
+  const requireLogin = () => {
+    showToastMsg('Faça login para acessar e gerenciar seus itens salvos.');
+  };
+
   return (
     <SavedProjects
       projects={projects}
       politicians={mockPoliticians}
       savedPoliticians={savedPoliticians}
-      onProjectClick={(id) => router.push(`/project/${id}`)}
-      onToggleSave={toggleSaveProject}
-      onPoliticianClick={(id) => router.push(`/politician/${id}`)}
-      onRemovePolitician={removePolitician}
-      onNavigateToSearch={() => router.push('/(tabs)/search')}
+      onProjectClick={(id) => router.push(`/project/${id}` as never)}
+      onToggleSave={(id) => {
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
+        toggleSaveProject(id);
+      }}
+      onPoliticianClick={(id) => router.push(`/politician/${id}` as never)}
+      onRemovePolitician={(id) => {
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
+        removePolitician(id);
+      }}
+      onNavigateToSearch={() => router.push('/(tabs)/search' as never)}
       onShowToast={showToastMsg}
     />
   );

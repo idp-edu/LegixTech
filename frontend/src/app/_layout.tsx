@@ -5,10 +5,15 @@ import {
   Fraunces_700Bold,
   useFonts as useFraunces,
 } from '@expo-google-fonts/fraunces';
-import { Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold, useFonts as useManrope } from '@expo-google-fonts/manrope';
+import {
+  Manrope_400Regular,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  useFonts as useManrope,
+} from '@expo-google-fonts/manrope';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useCallback } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -16,13 +21,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppOverlays } from '@/components/AppOverlays';
 import { AppProvider, useApp } from '@/context/AppContext';
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { isDark } = useApp();
 
   return (
-    <View className="flex-1 bg-background" style={isDark ? { backgroundColor: '#0f172a' } : undefined}>
+    <View
+      className="flex-1 bg-background"
+      style={isDark ? { backgroundColor: '#0f172a' } : undefined}
+    >
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
@@ -36,17 +44,29 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const [frauncesLoaded] = useFraunces({ Fraunces_400Regular, Fraunces_700Bold });
-  const [manropeLoaded] = useManrope({ Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold });
+  const [frauncesLoaded] = useFraunces({
+    Fraunces_400Regular,
+    Fraunces_700Bold,
+  });
 
-  useEffect(() => {
-    if (frauncesLoaded && manropeLoaded) SplashScreen.hideAsync();
-  }, [frauncesLoaded, manropeLoaded]);
+  const [manropeLoaded] = useManrope({
+    Manrope_400Regular,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+  });
 
-  if (!frauncesLoaded || !manropeLoaded) return null;
+  const fontsLoaded = frauncesLoaded && manropeLoaded;
+
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <AppProvider>
           <RootNavigator />

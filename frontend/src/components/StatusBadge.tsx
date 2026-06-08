@@ -40,22 +40,37 @@ const statusConfig: Record<
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const config = statusConfig[status];
+  const config = statusConfig[status] ?? statusConfig.pending;
 
   return (
     <View className="relative">
-      <Pressable onPress={() => setShowTooltip((v) => !v)}>
+      <Pressable
+        onPress={() => setShowTooltip((v) => !v)}
+        accessibilityRole="button"
+        accessibilityLabel={config.label}
+        accessibilityHint="Toque para ver a descrição do status"
+      >
         <Text
           className={`uppercase tracking-wider ${size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'}`}
-          style={{ backgroundColor: config.bg, color: config.color, fontWeight: '600', borderRadius: 4 }}
+          style={{
+            backgroundColor: config.bg,
+            color: config.color,
+            fontWeight: '600',
+            borderRadius: 4,
+          }}
         >
           {config.label}
         </Text>
       </Pressable>
+
       {showTooltip && (
-        <View className="absolute bottom-full left-0 mb-2 max-w-xs rounded-lg border border-border bg-card px-3 py-2 shadow-lg z-50">
+        <Pressable
+          onPress={() => setShowTooltip(false)}
+          className="absolute bottom-full left-0 z-50 mb-2 max-w-xs rounded-lg border border-border bg-card px-3 py-2 shadow-lg"
+          accessibilityRole="alert"
+        >
           <Text className="text-center text-[13px] leading-snug text-foreground">{config.tooltip}</Text>
-        </View>
+        </Pressable>
       )}
     </View>
   );

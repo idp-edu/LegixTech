@@ -8,14 +8,7 @@ import { DailyDigestCard } from './DailyDigestCard';
 import { ProjectCard } from './ProjectCard';
 
 interface HomeFeedProps {
-  projects: Array<{
-    id: string;
-    title: string;
-    year: string;
-    status: ProjectStatus;
-    trending?: boolean;
-    category: string;
-  }>;
+  projects: Project[];
   savedProjects: string[];
   onProjectClick: (id: string) => void;
   onToggleSave: (id: string) => void;
@@ -78,9 +71,14 @@ export function HomeFeed({
         <Text className="font-display text-lg font-bold text-foreground">Atividade Recente</Text>
         {projects.map((project) => (
           <ProjectCard
-            key={project.id}
-            {...project}
-            saved={savedProjects.includes(project.id)}
+            key={project.id ?? project.externalId}
+            id={String(project.id ?? project.externalId ?? '')}
+            title={project.title}
+            year={String(project.year ?? '')}
+            status={(project.status ?? 'pending') as ProjectStatus}
+            trending={false}
+            category={project.source ?? project.type ?? 'Projeto'}
+            saved={savedProjects.includes(String(project.id ?? project.externalId ?? ''))}
             onClick={onProjectClick}
             onSave={onToggleSave}
           />

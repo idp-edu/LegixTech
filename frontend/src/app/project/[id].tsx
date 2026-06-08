@@ -1,25 +1,61 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { ProjectDetail } from '@/components/ProjectDetail';
 import { useApp } from '@/context/AppContext';
-import { mockProjects } from '@/data/mockProjects';
+import { useProject } from '@/hooks/useProject';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { userType, openChatbot } = useApp();
+  const { isGuest, openChatbot, showToastMsg } = useApp();
 
-  const project = mockProjects.find((p) => p.id === id);
+  const projectId = Array.isArray(id) ? id[0] : id;
+  const { project, loading, error } = useProject(projectId);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="mb-4 text-center text-foreground">{error}</Text>
+        <Text className="text-primary" onPress={() => router.back()}>
+          Voltar
+        </Text>
+      </View>
+    );
+  }
+
   if (!project) {
-    router.back();
-    return null;
+    return (
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="mb-4 text-center text-foreground">
+          Projeto não encontrado.
+        </Text>
+        <Text className="text-primary" onPress={() => router.back()}>
+          Voltar
+        </Text>
+      </View>
+    );
   }
 
   return (
     <ProjectDetail
       project={project}
       onBack={() => router.back()}
-      onChatbotClick={userType !== 'guest' ? () => openChatbot('projeto de lei') : undefined}
+      onChatbotClick={() => {
+        if (isGuest) {
+          showToastMsg('Faça login para usar o assistente deste projeto.');
+          return;
+        }
+        openChatbot('projeto de lei');
+      }}
     />
   );
 }

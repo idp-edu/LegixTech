@@ -1,17 +1,35 @@
+export interface ApiProject {
+  id?: number;
+  externalId?: string;
+  title: string;
+  year?: number;
+  status?: string;
+  summary?: string;
+  sponsor?: string;
+  category?: string;
+  themes?: string[];
+  ods?: number[];
+}
+
+export type ApiProjectList = {
+  dados: ApiProject[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
 export type ProjectStatus = 'active' | 'pending' | 'archived' | 'approved';
 
-export interface Project {
+export interface UiProject {
   id: string;
   title: string;
   year: string;
   status: ProjectStatus;
-  trending?: boolean;
+  summary?: string;
+  sponsor?: string;
   category: string;
-  summary: string;
-  impact: string[];
-  affected: string[];
-  sponsor: string;
-  introduced: string;
+  themes?: string[];
+  ods: number[];
 }
 
-export type UserType = 'google' | 'biometric' | 'guest' | null;
+export type Project = UiProject;

@@ -28,31 +28,38 @@ export const odsData: Record<number, ODS> = {
   17: { number: 17, name: 'Parcerias pelas Metas', color: '#19486A', lightColor: '#E6ECF0' },
 };
 
-// Theme to ODS mapping
 export const themeToODS: Record<string, number> = {
-  'Saúde': 3,
-  'Educação': 4,
-  'Economia': 8,
+  Saúde: 3,
+  Educação: 4,
+  Economia: 8,
   'Meio Ambiente': 13,
-  'Tecnologia': 9,
-  'Habitação': 11,
-  'Segurança': 16,
-  'Energia': 7,
-  'Água': 6,
-  'Agricultura': 2,
-  'Infraestrutura': 9,
-  'Outro': 17,
+  Tecnologia: 9,
+  Habitação: 11,
+  Segurança: 16,
+  Energia: 7,
+  Água: 6,
+  Agricultura: 2,
+  Infraestrutura: 9,
+  Outro: 17,
 };
 
-// Get ODS for a given theme
 export function getODSForTheme(theme: string): ODS | null {
   const odsNumber = themeToODS[theme];
   return odsNumber ? odsData[odsNumber] : null;
 }
 
-// Get ODS color for a theme
-export function getODSColor(theme: string, light: boolean = false): string {
+export function getODSColor(theme: string, light = false): string {
   const ods = getODSForTheme(theme);
+  if (!ods) return light ? '#f9fafb' : '#6b7280';
+  return light ? ods.lightColor : ods.color;
+}
+
+export function getODSByNumber(number: number): ODS | null {
+  return odsData[number] ?? null;
+}
+
+export function getODSColorByNumber(number: number, light = false): string {
+  const ods = getODSByNumber(number);
   if (!ods) return light ? '#f9fafb' : '#6b7280';
   return light ? ods.lightColor : ods.color;
 }

@@ -1,11 +1,29 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { useColorScheme } from 'react-native';
 
-import type { UserType } from '@/types/project';
+import {
+  clearAuthStorage,
+  getToken,
+  getUser,
+  removeToken,
+  removeUser,
+  saveToken,
+  saveUser,
+} from '@/services/storage';
+import type { AuthMode, AuthUser } from '@/types/auth';
 
 interface AppContextValue {
   isAuthenticated: boolean;
-  userType: UserType;
+  isGuest: boolean;
+  authMode: AuthMode;
+  user: AuthUser | null;
+  token: string | null;
   isDark: boolean;
   savedProjects: string[];
   savedPoliticians: string[];
@@ -15,8 +33,12 @@ interface AppContextValue {
   chatbotContext: string;
   toastMessage: string;
   showToast: boolean;
-  login: (type: NonNullable<UserType>) => void;
-  logout: () => void;
+  loginWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
+  loginWithGoogle: (payload: { token: string; user?: AuthUser }) => Promise<void>;
+  continueAsGuest: () => void;
+  logout: () => Promise<void>;
+  setUser: (user: AuthUser | null) => Promise<void>;
+  setToken: (token: string | null) => Promise<void>;
   toggleTheme: () => void;
   toggleSaveProject: (id: string) => void;
   toggleSavePolitician: (id: string) => void;
@@ -29,14 +51,24 @@ interface AppContextValue {
   hideToast: () => void;
 }
 
+type SessionPayload = {
+  token: string;
+  user?: AuthUser | null;
+  mode: Exclude<AuthMode, null>;
+};
+
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userType, setUserType] = useState<UserType>(null);
+
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>(null);
+  const [user, setUserState] = useState<AuthUser | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
+
   const [isDark, setIsDark] = useState(systemScheme === 'dark');
-  const [savedProjects, setSavedProjects] = useState<string[]>(['4', '5']);
+  const [savedProjects, setSavedProjects] = useState<string[]>([]);
   const [savedPoliticians, setSavedPoliticians] = useState<string[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDigestStories, setShowDigestStories] = useState(false);
@@ -45,17 +77,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
-  const login = useCallback((type: NonNullable<UserType>) => {
-    setUserType(type);
-    setIsAuthenticated(true);
-    if (type !== 'guest') setShowOnboarding(true);
+  useEffect(() => {
+    const hydrate = async () => {
+      const [storedToken, storedUser] = await Promise.all([
+        getToken(),
+        getUser<AuthUser>(),
+      ]);
+
+      if (storedToken && storedUser) {
+        setTokenState(storedToken);
+        setUserState(storedUser);
+        setAuthMode(storedUser.provider ?? 'password');
+      } else {
+        await clearAuthStorage();
+        setTokenState(null);
+        setUserState(null);
+        setAuthMode(null);
+      }
+
+      setIsHydrated(true);
+    };
+
+    hydrate();
   }, []);
 
-  const logout = useCallback(() => {
-    setIsAuthenticated(false);
-    setUserType(null);
+  const persistSession = useCallback(async (payload: SessionPayload) => {
+    const nextUser = payload.user ?? null;
+    setAuthMode(payload.mode);
+    setTokenState(payload.token);
+    setUserState(nextUser);
+    await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
+  }, []);
+
+  const loginWithPassword = useCallback(
+    async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
+      await persistSession({
+        token: nextToken,
+        user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
+        mode: 'password',
+      });
+      setShowOnboarding(true);
+    },
+    [persistSession],
+  );
+
+  const loginWithGoogle = useCallback(
+    async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
+      await persistSession({
+        token: nextToken,
+        user: nextUser ? { ...nextUser, provider: 'google' } : { provider: 'google' },
+        mode: 'google',
+      });
+      setShowOnboarding(true);
+    },
+    [persistSession],
+  );
+
+  const continueAsGuest = useCallback(() => {
+    setAuthMode('guest');
+    setTokenState(null);
+    setUserState(null);
+    setSavedProjects([]);
+    setSavedPoliticians([]);
     setShowOnboarding(false);
     setShowChatbot(false);
+  }, []);
+
+  const logout = useCallback(async () => {
+    setAuthMode(null);
+    setTokenState(null);
+    setUserState(null);
+    setShowOnboarding(false);
+    setShowChatbot(false);
+    await clearAuthStorage();
+  }, []);
+
+  const setToken = useCallback(async (nextToken: string | null) => {
+    setTokenState(nextToken);
+    if (nextToken) {
+      await saveToken(nextToken);
+    } else {
+      await removeToken();
+    }
+  }, []);
+
+  const setUser = useCallback(async (nextUser: AuthUser | null) => {
+    setUserState(nextUser);
+    if (nextUser) {
+      await saveUser(nextUser);
+    } else {
+      await removeUser();
+    }
   }, []);
 
   const toggleTheme = useCallback(() => setIsDark((p) => !p), []);
@@ -86,56 +198,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const hideToast = useCallback(() => setShowToast(false), []);
 
-  const value = useMemo(
-    () => ({
-      isAuthenticated,
-      userType,
-      isDark,
-      savedProjects,
-      savedPoliticians,
-      showOnboarding,
-      showDigestStories,
-      showChatbot,
-      chatbotContext,
-      toastMessage,
-      showToast,
-      login,
-      logout,
-      toggleTheme,
-      toggleSaveProject,
-      toggleSavePolitician,
-      removePolitician,
-      setShowOnboarding,
-      setShowDigestStories,
-      openChatbot,
-      closeChatbot,
-      showToastMsg,
-      hideToast,
-    }),
-    [
-      isAuthenticated,
-      userType,
-      isDark,
-      savedProjects,
-      savedPoliticians,
-      showOnboarding,
-      showDigestStories,
-      showChatbot,
-      chatbotContext,
-      toastMessage,
-      showToast,
-      login,
-      logout,
-      toggleTheme,
-      toggleSaveProject,
-      toggleSavePolitician,
-      removePolitician,
-      openChatbot,
-      closeChatbot,
-      showToastMsg,
-      hideToast,
-    ],
-  );
+  const value: AppContextValue = {
+    isAuthenticated: authMode === 'password' || authMode === 'google',
+    isGuest: authMode === 'guest',
+    authMode,
+    user,
+    token,
+    isDark,
+    savedProjects,
+    savedPoliticians,
+    showOnboarding,
+    showDigestStories,
+    showChatbot,
+    chatbotContext,
+    toastMessage,
+    showToast,
+    loginWithPassword,
+    loginWithGoogle,
+    continueAsGuest,
+    logout,
+    setUser,
+    setToken,
+    toggleTheme,
+    toggleSaveProject,
+    toggleSavePolitician,
+    removePolitician,
+    setShowOnboarding,
+    setShowDigestStories,
+    openChatbot,
+    closeChatbot,
+    showToastMsg,
+    hideToast,
+  };
+
+  if (!isHydrated) return null;
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

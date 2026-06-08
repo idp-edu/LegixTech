@@ -7,7 +7,7 @@ import { Toast } from './Toast';
 
 export function AppOverlays() {
   const {
-    userType,
+    isGuest,
     showOnboarding,
     setShowOnboarding,
     showDigestStories,
@@ -32,7 +32,7 @@ export function AppOverlays() {
         onClose={() => setShowDigestStories(false)}
         onViewProjects={() => setShowDigestStories(false)}
       />
-      {userType !== 'guest' && (
+      {!isGuest && (
         <ChatbotDrawer isOpen={showChatbot} onClose={closeChatbot} context={chatbotContext} />
       )}
       <Toast message={toastMessage} isVisible={showToast} onClose={hideToast} />
