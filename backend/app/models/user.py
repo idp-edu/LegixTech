@@ -14,3 +14,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     saved_projects = relationship("SavedProject", back_populates="user")
+    saved_politicians = relationship("SavedPolitician", back_populates="user")
