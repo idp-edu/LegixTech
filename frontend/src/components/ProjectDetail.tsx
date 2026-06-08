@@ -1,16 +1,11 @@
 import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  CheckCircle,
-  ExternalLink,
-  MessageCircle,
-  Share2,
-  Users,
+  ArrowLeft, Building2, Calendar, CheckCircle,
+  ExternalLink, MessageCircle, Share2, Users,
 } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '@/hooks/useTheme';
 import { getODSColorByNumber } from '@/data/odsMapping';
 import type { UiProject } from '@/types/project';
 
@@ -23,30 +18,47 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ project, onBack, onChatbotClick }: ProjectDetailProps) {
+  const { colors } = useTheme();
   const firstOds = project.ods?.[0];
 
   return (
-    <View className="flex-1 bg-background">
-      <SafeAreaView edges={['top']} className="border-b border-border bg-card px-4 py-4">
-        <View className="flex-row items-center gap-3">
-          <Pressable onPress={onBack} className="min-h-11 min-w-11 items-center justify-center -ml-2 rounded-full">
-            <ArrowLeft size={24} color="#1a1a1a" />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView
+        edges={['top']}
+        style={{
+          borderBottomWidth: 1,
+          borderBottomColor: colors.divider,
+          backgroundColor: colors.surface,
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Pressable
+            onPress={onBack}
+            style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -8, borderRadius: 22 }}
+          >
+            <ArrowLeft size={24} color={colors.text} />
           </Pressable>
-          <Text className="flex-1 font-display text-lg font-bold text-foreground">Detalhes do Projeto</Text>
-          <Pressable className="min-h-11 min-w-11 items-center justify-center rounded-full">
-            <Share2 size={20} color="#1e40af" />
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: 'bold', color: colors.text }}>Detalhes do Projeto</Text>
+          <Pressable style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 }}>
+            <Share2 size={20} color={colors.primary} />
           </Pressable>
         </View>
       </SafeAreaView>
 
-      <ScrollView className="flex-1 px-4 py-6" contentContainerStyle={{ paddingBottom: 112, gap: 24 }}>
-        <View className="gap-3">
-          <View className="flex-row flex-wrap items-center gap-2">
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingTop: 24, paddingBottom: 112, gap: 24 }}>
+        <View style={{ gap: 12 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <StatusBadge status={project.status ?? 'pending'} />
             {firstOds ? (
               <Text
-                className="rounded px-3 py-1 text-sm font-medium"
                 style={{
+                  borderRadius: 4,
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  fontSize: 14,
+                  fontWeight: '500',
                   backgroundColor: getODSColorByNumber(firstOds, true),
                   color: getODSColorByNumber(firstOds, false),
                   borderWidth: 1,
@@ -57,102 +69,117 @@ export function ProjectDetail({ project, onBack, onChatbotClick }: ProjectDetail
               </Text>
             ) : null}
           </View>
-          <Text className="font-display text-2xl font-bold text-foreground">{project.title}</Text>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', color: colors.text }}>{project.title}</Text>
         </View>
 
-        <View className="flex-row flex-wrap gap-4 rounded-lg border border-border bg-surface p-4">
-          <View className="min-w-[45%] flex-1 gap-1">
-            <View className="flex-row items-center gap-2">
-              <Building2 size={16} color="#6b7280" />
-              <Text className="text-sm text-muted-foreground">Autor</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16 }}>
+          <View style={{ minWidth: '45%', flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Building2 size={16} color={colors.textMuted} />
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>Autor</Text>
             </View>
-            <Text className="text-sm font-medium text-foreground">{project.sponsor ?? 'Não informado'}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>{project.sponsor ?? 'Não informado'}</Text>
           </View>
-          <View className="min-w-[45%] flex-1 gap-1">
-            <View className="flex-row items-center gap-2">
-              <Calendar size={16} color="#6b7280" />
-              <Text className="text-sm text-muted-foreground">Ano</Text>
+          <View style={{ minWidth: '45%', flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Calendar size={16} color={colors.textMuted} />
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>Ano</Text>
             </View>
-            <Text className="text-sm font-medium text-foreground">{project.year ?? 'Não informado'}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>{project.year ?? 'Não informado'}</Text>
           </View>
         </View>
 
-        <View className="border-b border-border pb-1">
-          <Text className="font-medium text-primary">Entenda a Lei</Text>
-          <View className="mt-2 h-0.5 w-full bg-primary" />
+        <View style={{ borderBottomWidth: 1, borderBottomColor: colors.divider, paddingBottom: 4 }}>
+          <Text style={{ fontWeight: '500', color: colors.primary }}>Entenda a Lei</Text>
+          <View style={{ marginTop: 8, height: 2, width: '100%', backgroundColor: colors.primary }} />
         </View>
 
-        <View className="gap-3">
-          <Text className="font-display text-lg font-bold text-foreground">O Resumo</Text>
-          <Text className="leading-relaxed text-foreground">
+        <View style={{ gap: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>O Resumo</Text>
+          <Text style={{ lineHeight: 24, color: colors.text }}>
             {project.summary ?? 'Resumo não disponível para este projeto.'}
           </Text>
-          <Text className="text-xs italic text-muted-foreground">Resumo exibido a partir dos dados da API</Text>
+          <Text style={{ fontSize: 12, fontStyle: 'italic', color: colors.textMuted }}>Resumo exibido a partir dos dados da API</Text>
         </View>
 
         {project.themes?.length ? (
-          <View className="gap-3">
-            <View className="flex-row items-center gap-2">
-              <Users size={20} color="#1e40af" />
-              <Text className="font-display text-lg font-bold text-foreground">Temas relacionados</Text>
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Users size={20} color={colors.primary} />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Temas relacionados</Text>
             </View>
             {project.themes.map((theme, index) => (
-              <View key={`${theme}-${index}`} className="flex-row items-start gap-3 rounded-lg bg-surface p-3">
-                <View className="mt-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                <Text className="flex-1 leading-relaxed text-foreground">{theme}</Text>
+              <View key={`${theme}-${index}`} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 8, backgroundColor: colors.surface, padding: 12 }}>
+                <View style={{ marginTop: 8, height: 6, width: 6, borderRadius: 3, backgroundColor: colors.primary }} />
+                <Text style={{ flex: 1, lineHeight: 24, color: colors.text }}>{theme}</Text>
               </View>
             ))}
           </View>
         ) : null}
 
-        <View className="gap-3">
-          <Text className="font-display text-lg font-bold text-foreground">Linha do Tempo do Projeto</Text>
-          <View className="gap-4 rounded-lg border border-border bg-surface p-4">
-            <View className="flex-row gap-4">
-              <View className="items-center">
-                <View className="h-3 w-3 rounded-full bg-primary" />
-                <View className="mt-1 w-0.5 flex-1 bg-border" style={{ minHeight: 40 }} />
+        <View style={{ gap: 12 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Linha do Tempo do Projeto</Text>
+          <View style={{ gap: 16, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16 }}>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ height: 12, width: 12, borderRadius: 6, backgroundColor: colors.primary }} />
+                <View style={{ marginTop: 4, width: 2, flex: 1, backgroundColor: colors.border, minHeight: 40 }} />
               </View>
-              <View className="flex-1 pb-2">
-                <Text className="text-sm text-muted-foreground">{project.year ?? 'Ano não informado'}</Text>
-                <Text className="font-medium text-foreground">Projeto apresentado</Text>
-                <Text className="mt-1 text-sm text-muted-foreground">
+              <View style={{ flex: 1, paddingBottom: 8 }}>
+                <Text style={{ fontSize: 14, color: colors.textMuted }}>{project.year ?? 'Ano não informado'}</Text>
+                <Text style={{ fontWeight: '500', color: colors.text }}>Projeto apresentado</Text>
+                <Text style={{ marginTop: 4, fontSize: 14, color: colors.textMuted }}>
                   Apresentado por {project.sponsor ?? 'autor não informado'}
                 </Text>
               </View>
             </View>
 
             {project.status === 'approved' && (
-              <View className="flex-row gap-4">
+              <View style={{ flexDirection: 'row', gap: 16 }}>
                 <CheckCircle size={16} color="#15803d" style={{ marginTop: 4 }} />
-                <View className="flex-1">
-                  <Text className="font-medium text-success">Aprovado</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontWeight: '500', color: '#15803d' }}>Aprovado</Text>
                 </View>
               </View>
             )}
 
             {project.status === 'active' && (
-              <View className="flex-row gap-4">
-                <View className="h-3 w-3 rounded-full bg-warning" style={{ marginTop: 4 }} />
-                <View className="flex-1">
-                  <Text className="text-sm text-muted-foreground">Atual</Text>
-                  <Text className="font-medium text-foreground">Em análise na comissão</Text>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                <View style={{ height: 12, width: 12, borderRadius: 6, backgroundColor: colors.kpiAmberText, marginTop: 4 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>Atual</Text>
+                  <Text style={{ fontWeight: '500', color: colors.text }}>Em análise na comissão</Text>
                 </View>
               </View>
             )}
           </View>
         </View>
 
-        <Pressable className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-lg bg-primary py-4">
+        <Pressable style={{ minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, backgroundColor: colors.primary, paddingVertical: 16 }}>
           <ExternalLink size={20} color="#fff" />
-          <Text className="font-medium text-primary-foreground">Acessar Texto Oficial</Text>
+          <Text style={{ fontWeight: '500', color: '#fff' }}>Acessar Texto Oficial</Text>
         </Pressable>
       </ScrollView>
 
       {onChatbotClick && (
         <Pressable
           onPress={onChatbotClick}
-          className="absolute bottom-8 right-6 h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg"
+          style={{
+            position: 'absolute',
+            bottom: 32,
+            right: 24,
+            height: 56,
+            width: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 28,
+            backgroundColor: colors.primary,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
         >
           <MessageCircle size={24} color="#fff" />
         </Pressable>

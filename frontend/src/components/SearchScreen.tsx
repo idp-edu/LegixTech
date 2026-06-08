@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '@/hooks/useTheme';
 import type { Politician } from '@/data/mockPoliticians';
 import type { ProjectStatus } from '@/types/project';
 
@@ -48,6 +49,7 @@ export function SearchScreen({
   const [searchQuery, setSearchQuery] = useState('');
   const [houseFilter, setHouseFilter] = useState<'Todos' | 'Senado' | 'Câmara'>('Todos');
   const [stateFilter, setStateFilter] = useState('Todos');
+  const { colors } = useTheme();
 
   const filteredProjects = projects.filter((p) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -58,40 +60,104 @@ export function SearchScreen({
   const filteredPoliticians = politicians.filter((p) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(q) || p.party.toLowerCase().includes(q) || p.state.toLowerCase().includes(q);
+      p.name.toLowerCase().includes(q) ||
+      p.party.toLowerCase().includes(q) ||
+      p.state.toLowerCase().includes(q);
     const matchesHouse = houseFilter === 'Todos' || p.house === houseFilter;
     const matchesState = stateFilter === 'Todos' || p.state === stateFilter;
     return matchesSearch && matchesHouse && matchesState;
   });
 
-  const shouldShowPoliticians = searchQuery.length > 0 || houseFilter !== 'Todos' || stateFilter !== 'Todos';
+  const shouldShowPoliticians =
+    searchQuery.length > 0 || houseFilter !== 'Todos' || stateFilter !== 'Todos';
 
   const TabButton = ({ id, label }: { id: typeof activeTab; label: string }) => (
-    <Pressable onPress={() => { setActiveTab(id); setSearchQuery(''); }} className="relative min-h-11 px-4 py-3">
+    <Pressable
+      onPress={() => {
+        setActiveTab(id);
+        setSearchQuery('');
+      }}
+      style={{
+        position: 'relative',
+        minHeight: 44,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+      }}
+    >
       <Text
-        className={activeTab === id ? 'font-medium text-primary' : 'text-muted-foreground'}
+        style={{
+          color: activeTab === id ? colors.primary : colors.textMuted,
+          fontWeight: activeTab === id ? '500' : '400',
+        }}
       >
         {label}
       </Text>
-      {activeTab === id && <View className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
+      {activeTab === id && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            backgroundColor: colors.primary,
+          }}
+        />
+      )}
     </Pressable>
   );
 
   return (
-    <View className="flex-1 bg-background">
-      <SafeAreaView edges={['top']} className="border-b border-border bg-card px-4 py-4">
-        <Text className="font-display text-xl font-bold text-foreground">Busca & Descoberta</Text>
-        <Text className="mt-1 text-sm text-muted-foreground">Encontre legislação e parlamentares</Text>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView
+        edges={['top']}
+        style={{
+          borderBottomWidth: 1,
+          borderBottomColor: colors.divider,
+          backgroundColor: colors.surface,
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+        }}
+      >
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>
+          Busca & Descoberta
+        </Text>
+        <Text style={{ marginTop: 4, fontSize: 14, color: colors.textMuted }}>
+          Encontre legislação e parlamentares
+        </Text>
       </SafeAreaView>
 
-      <View className="flex-row border-b border-border bg-card px-4">
+      <View
+        style={{
+          flexDirection: 'row',
+          borderBottomWidth: 1,
+          borderBottomColor: colors.divider,
+          backgroundColor: colors.surface,
+          paddingHorizontal: 16,
+        }}
+      >
         <TabButton id="projetos" label="Projetos" />
         <TabButton id="parlamentares" label="Parlamentares" />
       </View>
 
-      <ScrollView className="flex-1 px-4 py-6" contentContainerStyle={{ paddingBottom: 96, gap: 16 }}>
-        <View className="flex-row items-center gap-3 rounded-xl border border-border bg-input-background px-4 py-3">
-          <Search size={20} color="#6b7280" />
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 16 }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+          }}
+        >
+          <Search size={20} color={colors.textMuted} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -100,25 +166,26 @@ export function SearchScreen({
                 ? 'Buscar projetos por palavra-chave...'
                 : 'Buscar por nome, partido ou estado...'
             }
-            placeholderTextColor="#6b7280"
-            className="min-h-11 flex-1 text-foreground"
+            placeholderTextColor={colors.textMuted}
+            style={{ flex: 1, minHeight: 44, color: colors.text, fontSize: 16 }}
           />
         </View>
 
         {activeTab === 'projetos' && (
-          <View className="gap-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="font-display text-lg font-bold text-foreground">
+          <View style={{ gap: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
                 {searchQuery ? 'Resultados da Busca' : 'Todos os Projetos'}
               </Text>
-              <Text className="text-sm text-muted-foreground">
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>
                 {filteredProjects.length} {filteredProjects.length === 1 ? 'projeto' : 'projetos'}
               </Text>
             </View>
+
             {filteredProjects.length === 0 ? (
-              <View className="items-center py-16">
-                <Search size={48} color="#6b7280" />
-                <Text className="mt-3 text-muted-foreground">
+              <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+                <Search size={48} color={colors.textMuted} />
+                <Text style={{ marginTop: 12, color: colors.textMuted }}>
                   {searchQuery ? 'Nenhum projeto encontrado' : 'Digite para buscar projetos'}
                 </Text>
               </View>
@@ -137,17 +204,33 @@ export function SearchScreen({
         )}
 
         {activeTab === 'parlamentares' && (
-          <View className="gap-4">
+          <View style={{ gap: 16 }}>
             <View>
-              <Text className="mb-2 text-sm font-medium text-muted-foreground">Casa Legislativa</Text>
-              <View className="flex-row flex-wrap gap-2">
+              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>
+                Casa Legislativa
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {(['Todos', 'Senado', 'Câmara'] as const).map((house) => (
                   <Pressable
                     key={house}
                     onPress={() => setHouseFilter(house)}
-                    className={`min-h-11 rounded-full px-4 py-2 ${houseFilter === house ? 'bg-primary' : 'border border-border bg-surface'}`}
+                    style={{
+                      minHeight: 44,
+                      borderRadius: 999,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      backgroundColor: houseFilter === house ? colors.primary : colors.surface,
+                      borderWidth: houseFilter === house ? 0 : 1,
+                      borderColor: colors.border,
+                      justifyContent: 'center',
+                    }}
                   >
-                    <Text className={houseFilter === house ? 'font-medium text-primary-foreground' : 'text-foreground'}>
+                    <Text
+                      style={{
+                        fontWeight: houseFilter === house ? '500' : '400',
+                        color: houseFilter === house ? '#fff' : colors.text,
+                      }}
+                    >
                       {house}
                     </Text>
                   </Pressable>
@@ -156,15 +239,35 @@ export function SearchScreen({
             </View>
 
             <View>
-              <Text className="mb-2 text-sm font-medium text-muted-foreground">Estado</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 pb-2">
+              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>
+                Estado
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
+              >
                 {availableStates.map((state) => (
                   <Pressable
                     key={state}
                     onPress={() => setStateFilter(state)}
-                    className={`min-h-11 rounded-full px-4 py-2 ${stateFilter === state ? 'bg-primary' : 'border border-border bg-surface'}`}
+                    style={{
+                      minHeight: 44,
+                      borderRadius: 999,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      backgroundColor: stateFilter === state ? colors.primary : colors.surface,
+                      borderWidth: stateFilter === state ? 0 : 1,
+                      borderColor: colors.border,
+                      justifyContent: 'center',
+                    }}
                   >
-                    <Text className={stateFilter === state ? 'font-medium text-primary-foreground' : 'text-foreground'}>
+                    <Text
+                      style={{
+                        fontWeight: stateFilter === state ? '500' : '400',
+                        color: stateFilter === state ? '#fff' : colors.text,
+                      }}
+                    >
                       {state}
                     </Text>
                   </Pressable>
@@ -173,49 +276,96 @@ export function SearchScreen({
             </View>
 
             {!shouldShowPoliticians ? (
-              <View className="items-center py-16">
-                <UserCircle size={48} color="#6b7280" />
-                <Text className="mt-3 font-medium text-foreground">Pesquise ou filtre para encontrar parlamentares</Text>
-                <Text className="text-sm text-muted-foreground">Use a busca ou selecione filtros acima</Text>
+              <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+                <UserCircle size={48} color={colors.textMuted} />
+                <Text style={{ marginTop: 12, fontWeight: '500', color: colors.text }}>
+                  Pesquise ou filtre para encontrar parlamentares
+                </Text>
+                <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                  Use a busca ou selecione filtros acima
+                </Text>
               </View>
             ) : filteredPoliticians.length === 0 ? (
-              <View className="items-center py-16">
-                <UserCircle size={48} color="#6b7280" />
-                <Text className="text-muted-foreground">Nenhum parlamentar encontrado</Text>
+              <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+                <UserCircle size={48} color={colors.textMuted} />
+                <Text style={{ color: colors.textMuted }}>Nenhum parlamentar encontrado</Text>
               </View>
             ) : (
               filteredPoliticians.map((politician) => {
                 const isFollowing = savedPoliticians.includes(politician.id);
+
                 return (
-                  <View key={politician.id} className="rounded-lg border border-border bg-card p-4">
-                    <View className="flex-row items-center gap-4">
-                      <Pressable onPress={() => onPoliticianClick(politician.id)} className="flex-1 flex-row items-center gap-4">
-                        <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
-                          <Text className="font-display font-bold text-primary-foreground">
+                  <View
+                    key={politician.id}
+                    style={{
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: colors.surface,
+                      padding: 16,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                      <Pressable
+                        onPress={() => onPoliticianClick(politician.id)}
+                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 16 }}
+                      >
+                        <View
+                          style={{
+                            height: 56,
+                            width: 56,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: 28,
+                            backgroundColor: colors.primary,
+                          }}
+                        >
+                          <Text style={{ fontWeight: 'bold', color: '#fff' }}>
                             {getInitials(politician.name)}
                           </Text>
                         </View>
-                        <View className="flex-1">
-                          <Text className="mb-1 font-medium text-foreground">{politician.name}</Text>
-                          <Text className="text-sm text-muted-foreground">
+
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ marginBottom: 4, fontWeight: '500', color: colors.text }}>
+                            {politician.name}
+                          </Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted }}>
                             {politician.party} • {politician.state} • {politician.house}
                           </Text>
                         </View>
                       </Pressable>
+
                       {onToggleSavePolitician && (
                         <Pressable
                           onPress={() => onToggleSavePolitician(politician.id)}
-                          className={`min-h-11 min-w-[100px] flex-row items-center justify-center gap-2 rounded-lg px-4 py-2 ${isFollowing ? 'border border-primary bg-primary-light' : 'border border-border bg-surface'}`}
+                          style={{
+                            minHeight: 44,
+                            minWidth: 100,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 8,
+                            borderRadius: 8,
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            backgroundColor: colors.surface,
+                            borderWidth: 1,
+                            borderColor: isFollowing ? colors.primary : colors.border,
+                          }}
                         >
                           {isFollowing ? (
                             <>
-                              <UserCheck size={18} color="#1e40af" />
-                              <Text className="text-sm font-medium text-primary">Seguindo</Text>
+                              <UserCheck size={18} color={colors.primary} />
+                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.primary }}>
+                                Seguindo
+                              </Text>
                             </>
                           ) : (
                             <>
-                              <UserPlus size={18} color="#1a1a1a" />
-                              <Text className="text-sm font-medium text-foreground">Seguir</Text>
+                              <UserPlus size={18} color={colors.text} />
+                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>
+                                Seguir
+                              </Text>
                             </>
                           )}
                         </Pressable>

@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { useTheme } from '@/hooks/useTheme';
+
 interface DailyDigestCardProps {
   onClick: () => void;
 }
@@ -10,6 +12,7 @@ interface DailyDigestCardProps {
 export function DailyDigestCard({ onClick }: DailyDigestCardProps) {
   const [isRead, setIsRead] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const { colors } = useTheme();
 
   const today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -27,60 +30,70 @@ export function DailyDigestCard({ onClick }: DailyDigestCardProps) {
     return (
       <Pressable
         onPress={() => setIsMinimized(false)}
-        className="w-full rounded-lg border border-border bg-card p-4"
+        style={{
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          padding: 16,
+        }}
       >
-        <View className="flex-row items-center gap-3">
-          <Calendar size={18} color="#6b7280" />
-          <View className="flex-1">
-            <Text className="text-sm font-medium text-foreground">Resumo do dia — Lido</Text>
-            <Text className="text-xs capitalize text-muted-foreground">{today}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Calendar size={18} color={colors.textMuted} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>Resumo do dia — Lido</Text>
+            <Text style={{ fontSize: 12, textTransform: 'capitalize', color: colors.textMuted }}>{today}</Text>
           </View>
           <Pressable
-            onPress={() => {
-              setIsRead(false);
-              setIsMinimized(false);
-            }}
-            className="min-h-11 min-w-11 items-center justify-center"
+            onPress={() => { setIsRead(false); setIsMinimized(false); }}
+            style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <RotateCcw size={18} color="#6b7280" />
+            <RotateCcw size={18} color={colors.textMuted} />
           </Pressable>
-          <ChevronDown size={20} color="#6b7280" />
+          <ChevronDown size={20} color={colors.textMuted} />
         </View>
       </Pressable>
     );
   }
 
   return (
-    <View className="w-full overflow-hidden rounded-2xl">
+    <View style={{ width: '100%', borderRadius: 16, overflow: 'hidden' }}>
       <LinearGradient colors={['#1e40af', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        <Pressable onPress={onClick} className="w-full p-5">
-          <View className="mb-3 flex-row items-center gap-2">
+        <Pressable onPress={onClick} style={{ width: '100%', padding: 20 }}>
+          <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Calendar size={20} color="white" />
-            <Text className="text-sm capitalize text-white/90">{today}</Text>
+            <Text style={{ fontSize: 14, textTransform: 'capitalize', color: 'rgba(255,255,255,0.9)' }}>{today}</Text>
           </View>
-          <Text className="mb-3 font-display text-lg font-bold text-white">Resumo do Dia</Text>
-          <View className="mb-4 gap-2">
+          <Text style={{ marginBottom: 12, fontSize: 18, fontWeight: 'bold', color: 'white' }}>Resumo do Dia</Text>
+          <View style={{ marginBottom: 16, gap: 8 }}>
             {highlights.map((h, i) => (
-              <View key={i} className="flex-row items-start gap-2">
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                 <TrendingUp size={16} color="rgba(255,255,255,0.8)" style={{ marginTop: 2 }} />
-                <Text className="flex-1 text-sm leading-relaxed text-white/95">{h}</Text>
+                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.95)' }}>{h}</Text>
               </View>
             ))}
           </View>
-          <View className="self-start rounded-lg bg-white/20 px-4 py-2">
-            <Text className="text-sm font-medium text-white">Ler Resumo Completo →</Text>
+          <View style={{ alignSelf: 'flex-start', borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '500', color: 'white' }}>Ler Resumo Completo →</Text>
           </View>
         </Pressable>
         {!isRead && (
-          <View className="px-5 pb-4">
+          <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
             <Pressable
-              onPress={() => {
-                setIsRead(true);
-                setIsMinimized(true);
+              onPress={() => { setIsRead(true); setIsMinimized(true); }}
+              style={{
+                minHeight: 44,
+                width: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.2)',
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                paddingVertical: 10,
               }}
-              className="min-h-11 w-full items-center justify-center rounded-lg border border-white/20 bg-white/15 py-2.5"
             >
-              <Text className="text-sm font-medium text-white">Marcar como lido</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: 'white' }}>Marcar como lido</Text>
             </Pressable>
           </View>
         )}

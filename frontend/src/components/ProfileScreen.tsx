@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '@/hooks/useTheme';
 import type { ProjectStatus } from '@/types/project';
 
 import { StatusBadge } from './StatusBadge';
@@ -27,6 +28,8 @@ interface ProfileScreenProps {
   followedPoliticians?: Array<{ id: string; name: string; party: string; focus: string }>;
 }
 
+type NotificationKey = 'savedProjects' | 'interests' | 'dailyDigest';
+
 export function ProfileScreen({
   onLogout,
   onRestartTutorial,
@@ -37,13 +40,20 @@ export function ProfileScreen({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSavedDetails, setShowSavedDetails] = useState(false);
   const [showFollowingDetails, setShowFollowingDetails] = useState(false);
-  const [notificationSettings, setNotificationSettings] = useState({
+  const [notificationSettings, setNotificationSettings] = useState<Record<NotificationKey, boolean>>({
     savedProjects: true,
     interests: true,
     dailyDigest: false,
   });
+  const { colors } = useTheme();
 
-  const menuItems = [
+  const menuItems: Array<{
+    icon: typeof Bookmark;
+    label: string;
+    description: string;
+    onClick?: () => void;
+    badge?: number;
+  }> = [
     {
       icon: Bookmark,
       label: 'Salvos',
@@ -76,62 +86,149 @@ export function ProfileScreen({
   ];
 
   return (
-    <View className="flex-1 bg-background">
-      <LinearGradient colors={['#1e40af', '#1e3a8a']} style={{ paddingHorizontal: 16, paddingVertical: 32 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <LinearGradient
+        colors={['#1e40af', '#1e3a8a']}
+        style={{ paddingHorizontal: 16, paddingVertical: 32 }}
+      >
         <SafeAreaView edges={['top']}>
-          <View className="flex-row items-center gap-4">
-            <View className="h-20 w-20 items-center justify-center rounded-full bg-white/20">
-              <Text className="font-display text-2xl font-bold text-white">JD</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View
+              style={{
+                height: 80,
+                width: 80,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 40,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+              }}
+            >
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>JD</Text>
             </View>
             <View>
-              <Text className="mb-1 font-display text-xl font-bold text-white">John Doe</Text>
-              <Text className="text-sm text-white/90">john.doe@example.com</Text>
+              <Text style={{ marginBottom: 4, fontSize: 20, fontWeight: 'bold', color: 'white' }}>
+                John Doe
+              </Text>
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>
+                john.doe@example.com
+              </Text>
             </View>
           </View>
         </SafeAreaView>
       </LinearGradient>
 
-      <ScrollView className="flex-1 px-4 py-6" contentContainerStyle={{ paddingBottom: 96, gap: 8 }}>
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 8 }}
+      >
         {menuItems.map((item, index) => {
           const Icon = item.icon;
+
           return (
             <View key={index}>
               <Pressable
                 onPress={item.onClick}
-                className="min-h-[68px] flex-row items-center gap-4 rounded-lg border border-border bg-card p-4"
+                style={{
+                  minHeight: 68,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  padding: 16,
+                }}
               >
-                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
+                <View
+                  style={{
+                    height: 40,
+                    width: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 20,
+                    backgroundColor: colors.primary,
+                  }}
+                >
                   <Icon size={20} color="#fff" />
                 </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-2">
-                    <Text className="font-medium text-foreground">{item.label}</Text>
+
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ fontWeight: '500', color: colors.text }}>{item.label}</Text>
                     {item.badge !== undefined && (
-                      <View className="rounded-full bg-primary px-2 py-0.5">
-                        <Text className="text-xs font-bold text-primary-foreground">{item.badge}</Text>
+                      <View
+                        style={{
+                          borderRadius: 999,
+                          backgroundColor: colors.primary,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#fff' }}>
+                          {item.badge}
+                        </Text>
                       </View>
                     )}
                   </View>
-                  <Text className="text-sm text-muted-foreground">{item.description}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.description}</Text>
                 </View>
-                <ChevronRight size={20} color="#6b7280" />
+
+                <ChevronRight size={20} color={colors.textMuted} />
               </Pressable>
 
               {item.label === 'Salvos' && showSavedDetails && (
-                <View className="mt-2 gap-2 rounded-lg border border-border bg-surface p-4">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="font-display font-bold text-foreground">
+                <View
+                  style={{
+                    marginTop: 8,
+                    gap: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                    padding: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Text style={{ fontWeight: 'bold', color: colors.text }}>
                       Projetos Salvos ({savedProjects.length})
                     </Text>
                     {onNavigateToSaved && (
                       <Pressable onPress={onNavigateToSaved}>
-                        <Text className="text-sm font-medium text-primary">Ver todos</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '500', color: colors.primary }}>
+                          Ver todos
+                        </Text>
                       </Pressable>
                     )}
                   </View>
+
                   {savedProjects.map((p) => (
-                    <View key={p.id} className="rounded-lg border border-border bg-card p-3">
-                      <Text className="mb-2 text-sm font-medium text-foreground">{p.title}</Text>
+                    <View
+                      key={p.id}
+                      style={{
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        backgroundColor: colors.surface,
+                        padding: 12,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          marginBottom: 8,
+                          fontSize: 14,
+                          fontWeight: '500',
+                          color: colors.text,
+                        }}
+                      >
+                        {p.title}
+                      </Text>
                       <StatusBadge status={p.status} size="sm" />
                     </View>
                   ))}
@@ -139,22 +236,56 @@ export function ProfileScreen({
               )}
 
               {item.label === 'Seguindo' && showFollowingDetails && (
-                <View className="mt-2 gap-2 rounded-lg border border-border bg-surface p-4">
-                  <Text className="font-display font-bold text-foreground">
+                <View
+                  style={{
+                    marginTop: 8,
+                    gap: 8,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                    padding: 16,
+                  }}
+                >
+                  <Text style={{ fontWeight: 'bold', color: colors.text }}>
                     Seguindo ({followedPoliticians.length} Políticos)
                   </Text>
+
                   {followedPoliticians.map((p) => (
-                    <View key={p.id} className="flex-row gap-3 rounded-lg border border-border bg-card p-3">
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-primary">
-                        <Text className="text-sm font-bold text-primary-foreground">
+                    <View
+                      key={p.id}
+                      style={{
+                        flexDirection: 'row',
+                        gap: 12,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        backgroundColor: colors.surface,
+                        padding: 12,
+                      }}
+                    >
+                      <View
+                        style={{
+                          height: 40,
+                          width: 40,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 20,
+                          backgroundColor: colors.primary,
+                        }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#fff' }}>
                           {p.name.split(' ')[0][0]}
                           {p.name.split(' ')[1]?.[0] ?? ''}
                         </Text>
                       </View>
-                      <View className="flex-1">
-                        <Text className="text-sm font-medium text-foreground">{p.name}</Text>
-                        <Text className="text-xs text-muted-foreground">{p.party}</Text>
-                        <Text className="text-xs text-muted-foreground">Foco: {p.focus}</Text>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>
+                          {p.name}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: colors.textMuted }}>{p.party}</Text>
+                        <Text style={{ fontSize: 12, color: colors.textMuted }}>Foco: {p.focus}</Text>
                       </View>
                     </View>
                   ))}
@@ -162,30 +293,69 @@ export function ProfileScreen({
               )}
 
               {item.label === 'Notificações' && showNotifications && (
-                <View className="mt-2 gap-4 rounded-lg border border-border bg-surface p-4">
-                  <Text className="font-medium text-foreground">Configurações de Notificação</Text>
+                <View
+                  style={{
+                    marginTop: 8,
+                    gap: 16,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.background,
+                    padding: 16,
+                  }}
+                >
+                  <Text style={{ fontWeight: '500', color: colors.text }}>
+                    Configurações de Notificação
+                  </Text>
+
                   {[
-                    { key: 'savedProjects' as const, title: 'Projetos Salvos', desc: 'Notificar quando projeto salvo tiver atualização' },
-                    { key: 'interests' as const, title: 'Temas de Interesse', desc: 'Notificar sobre temas favoritos' },
-                    { key: 'dailyDigest' as const, title: 'Resumo Diário', desc: 'Receber resumo todo dia pela manhã' },
+                    {
+                      key: 'savedProjects' as NotificationKey,
+                      title: 'Projetos Salvos',
+                      desc: 'Notificar quando projeto salvo tiver atualização',
+                    },
+                    {
+                      key: 'interests' as NotificationKey,
+                      title: 'Temas de Interesse',
+                      desc: 'Notificar sobre temas favoritos',
+                    },
+                    {
+                      key: 'dailyDigest' as NotificationKey,
+                      title: 'Resumo Diário',
+                      desc: 'Receber resumo todo dia pela manhã',
+                    },
                   ].map(({ key, title, desc }) => (
-                    <View key={key} className="flex-row items-center justify-between min-h-11">
-                      <View className="flex-1 pr-4">
-                        <Text className="font-medium text-foreground">{title}</Text>
-                        <Text className="text-sm text-muted-foreground">{desc}</Text>
+                    <View
+                      key={key}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        minHeight: 44,
+                      }}
+                    >
+                      <View style={{ flex: 1, paddingRight: 16 }}>
+                        <Text style={{ fontWeight: '500', color: colors.text }}>{title}</Text>
+                        <Text style={{ fontSize: 14, color: colors.textMuted }}>{desc}</Text>
                       </View>
+
                       <Switch
                         value={notificationSettings[key]}
-                        onValueChange={(v) => setNotificationSettings((prev) => ({ ...prev, [key]: v }))}
-                        trackColor={{ false: '#f3f4f6', true: '#1e40af' }}
+                        onValueChange={(v) =>
+                          setNotificationSettings((prev) => ({ ...prev, [key]: v }))
+                        }
+                        trackColor={{ false: colors.border, true: colors.primary }}
                       />
                     </View>
                   ))}
-                  <View className="gap-2">
-                    <Text className="font-medium text-foreground">Histórico de Notificações</Text>
-                    <View className="items-center py-8">
-                      <BellOff size={48} color="#6b7280" />
-                      <Text className="text-muted-foreground">Nenhuma notificação ainda.</Text>
+
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ fontWeight: '500', color: colors.text }}>
+                      Histórico de Notificações
+                    </Text>
+                    <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                      <BellOff size={48} color={colors.textMuted} />
+                      <Text style={{ color: colors.textMuted }}>Nenhuma notificação ainda.</Text>
                     </View>
                   </View>
                 </View>
@@ -196,14 +366,34 @@ export function ProfileScreen({
 
         <Pressable
           onPress={onLogout}
-          className="mt-6 min-h-[68px] flex-row items-center gap-4 rounded-lg border border-border bg-card p-4"
+          style={{
+            marginTop: 24,
+            minHeight: 68,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            padding: 16,
+          }}
         >
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-error-light">
-            <LogOut size={20} color="#ef4444" />
+          <View
+            style={{
+              height: 40,
+              width: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 20,
+              backgroundColor: colors.surface,
+            }}
+          >
+            <LogOut size={20} color="#EF4444" />
           </View>
-          <View className="flex-1">
-            <Text className="font-medium text-error">Sair da Conta</Text>
-            <Text className="text-sm text-muted-foreground">Encerrar sua sessão</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '500', color: '#EF4444' }}>Sair da Conta</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>Encerrar sua sessão</Text>
           </View>
         </Pressable>
       </ScrollView>

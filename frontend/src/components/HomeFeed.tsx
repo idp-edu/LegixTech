@@ -2,6 +2,7 @@ import { Bell, Moon, Sun } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTheme } from '@/hooks/useTheme';
 import type { Project, ProjectStatus } from '@/types/project';
 
 import { DailyDigestCard } from './DailyDigestCard';
@@ -26,59 +27,131 @@ export function HomeFeed({
   onToggleTheme,
   onDigestClick,
 }: HomeFeedProps) {
+  const { colors } = useTheme();
+
   return (
-    <View className="flex-1 bg-background">
-      <SafeAreaView edges={['top']} className="border-b border-border bg-card px-4 py-4">
-        <View className="flex-row items-center justify-between">
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <SafeAreaView
+        edges={['top']}
+        style={{
+          borderBottomWidth: 1,
+          borderBottomColor: colors.divider,
+          backgroundColor: colors.surface,
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Text className="mb-1 font-display text-2xl font-bold text-foreground">LegixTech</Text>
-            <Text className="text-sm text-muted-foreground">Monitoramento Legislativo</Text>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: colors.text, marginBottom: 2 }}>
+              LegixTech
+            </Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>Monitoramento Legislativo</Text>
           </View>
-          <View className="flex-row items-center gap-2">
-            <Pressable onPress={onToggleTheme} className="min-h-11 min-w-11 items-center justify-center rounded-full">
-              {isDark ? <Sun size={20} color="#1a1a1a" /> : <Moon size={20} color="#1a1a1a" />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              onPress={onToggleTheme}
+              style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 }}
+            >
+              {isDark ? (
+                <Sun size={20} color={colors.text} />
+              ) : (
+                <Moon size={20} color={colors.text} />
+              )}
             </Pressable>
-            <Pressable className="relative min-h-11 min-w-11 items-center justify-center rounded-full">
-              <Bell size={20} color="#1a1a1a" />
-              <View className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
+            <Pressable
+              style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 }}
+            >
+              <Bell size={20} color={colors.text} />
+              <View
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 8,
+                  height: 8,
+                  width: 8,
+                  borderRadius: 4,
+                  backgroundColor: '#EF4444',
+                }}
+              />
             </Pressable>
           </View>
         </View>
       </SafeAreaView>
 
-      <ScrollView className="flex-1 px-4 py-6" contentContainerStyle={{ paddingBottom: 96, gap: 16 }}>
+      <ScrollView
+        style={{ flex: 1, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 16 }}
+      >
         {onDigestClick && (
-          <View className="mb-2">
+          <View style={{ marginBottom: 8 }}>
             <DailyDigestCard onClick={onDigestClick} />
           </View>
         )}
 
-        <View className="mb-2 flex-row gap-3">
-          <View className="flex-1 items-center rounded-lg border border-success bg-success-light p-4">
-            <Text className="mb-1 font-display text-2xl font-bold text-success">24</Text>
-            <Text className="text-xs font-medium text-success">Em Tramitação</Text>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.kpiGreenText,
+              backgroundColor: colors.kpiGreenBg,
+              padding: 16,
+            }}
+          >
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiGreenText, marginBottom: 4 }}>24</Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiGreenText, textAlign: 'center' }}>
+              Em Tramitação
+            </Text>
           </View>
-          <View className="flex-1 items-center rounded-lg border border-warning bg-warning-light p-4">
-            <Text className="mb-1 font-display text-2xl font-bold text-warning">12</Text>
-            <Text className="text-xs font-medium text-warning">Aguardando Votação</Text>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.kpiAmberText,
+              backgroundColor: colors.kpiAmberBg,
+              padding: 16,
+            }}
+          >
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiAmberText, marginBottom: 4 }}>12</Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiAmberText, textAlign: 'center' }}>
+              Aguardando Votação
+            </Text>
           </View>
-          <View className="flex-1 items-center rounded-lg border border-info bg-info-light p-4">
-            <Text className="mb-1 font-display text-2xl font-bold text-info">8</Text>
-            <Text className="text-xs font-medium text-info">Aprovados</Text>
+          <View
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: colors.kpiBlueText,
+              backgroundColor: colors.kpiBlueBg,
+              padding: 16,
+            }}
+          >
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiBlueText, marginBottom: 4 }}>8</Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiBlueText, textAlign: 'center' }}>
+              Aprovados
+            </Text>
           </View>
         </View>
 
-        <Text className="font-display text-lg font-bold text-foreground">Atividade Recente</Text>
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Atividade Recente</Text>
+
         {projects.map((project) => (
           <ProjectCard
-            key={project.id ?? project.externalId}
-            id={String(project.id ?? project.externalId ?? '')}
+            key={project.id}
+            id={project.id}
             title={project.title}
-            year={String(project.year ?? '')}
-            status={(project.status ?? 'pending') as ProjectStatus}
+            year={project.year}
+            status={project.status as ProjectStatus}
             trending={false}
-            category={project.source ?? project.type ?? 'Projeto'}
-            saved={savedProjects.includes(String(project.id ?? project.externalId ?? ''))}
+            category={project.category}
+            saved={savedProjects.includes(project.id)}
             onClick={onProjectClick}
             onSave={onToggleSave}
           />

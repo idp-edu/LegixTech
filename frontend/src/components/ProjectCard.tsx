@@ -2,6 +2,7 @@ import { Bookmark, Calendar, TrendingUp } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { getODSColor } from '@/data/odsMapping';
+import { useTheme } from '@/hooks/useTheme';
 import type { ProjectStatus } from '@/types/project';
 
 import { StatusBadge } from './StatusBadge';
@@ -33,21 +34,36 @@ export function ProjectCard({
   onClick,
   onRequireAuth,
 }: ProjectCardProps) {
+  const { colors } = useTheme();
+
   return (
     <Pressable
       onPress={() => onClick?.(id)}
-      className="rounded-lg border border-border bg-card p-4 active:opacity-90"
+      style={{
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: 16,
+      }}
     >
-      <View className="mb-3 flex-row items-start justify-between gap-3">
-        <View className="flex-row flex-wrap items-center gap-2">
+      <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, flex: 1 }}>
           <StatusBadge status={status} size="sm" />
           {trending && (
             <View
-              className="flex-row items-center gap-1 rounded px-2 py-1"
-              style={{ backgroundColor: '#fee2e2' }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                borderRadius: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                backgroundColor: colors.badgeEmAltaBg,
+              }}
             >
-              <TrendingUp size={12} color="#ef4444" />
-              <Text className="text-xs font-medium" style={{ color: '#ef4444' }}>
+              <TrendingUp size={12} color={colors.badgeEmAltaText} />
+              <Text style={{ fontSize: 12, fontWeight: '500', color: colors.badgeEmAltaText }}>
                 Em Alta
               </Text>
             </View>
@@ -57,37 +73,39 @@ export function ProjectCard({
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
-
             if (!canSave) {
               onRequireAuth?.();
               return;
             }
-
             onSave?.(id);
           }}
-          className="min-h-11 min-w-11 items-center justify-center -mr-2 -mt-2"
+          style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', marginRight: -8, marginTop: -8 }}
           hitSlop={8}
         >
           <Bookmark
             size={20}
-            color={saved ? '#1e40af' : '#6b7280'}
-            fill={saved ? '#1e40af' : 'transparent'}
+            color={saved ? colors.primary : colors.textMuted}
+            fill={saved ? colors.primary : 'transparent'}
           />
         </Pressable>
       </View>
 
-      <Text className="mb-2 font-display text-base font-semibold leading-snug text-foreground">
+      <Text style={{ marginBottom: 8, fontSize: 16, fontWeight: '600', lineHeight: 22, color: colors.text }}>
         {title}
       </Text>
 
-      <View className="flex-row items-center gap-4">
-        <View className="flex-row items-center gap-1">
-          <Calendar size={14} color="#6b7280" />
-          <Text className="text-sm text-muted-foreground">{year}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Calendar size={14} color={colors.textMuted} />
+          <Text style={{ fontSize: 14, color: colors.textMuted }}>{year}</Text>
         </View>
         <Text
-          className="rounded px-2 py-1 text-xs font-medium"
           style={{
+            borderRadius: 4,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            fontSize: 12,
+            fontWeight: '500',
             backgroundColor: getODSColor(category, true),
             color: getODSColor(category, false),
             borderWidth: 1,
