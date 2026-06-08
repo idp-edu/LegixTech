@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 import httpx
 
 from app.core.database import get_db
+from app.core.security import get_current_user
 from app.models.politician import Politician
 from app.models.politician_vote import PoliticianVote
+from app.models.saved_politician import SavedPolitician
+from app.models.user import User
+from app.services import politician_notification_service
 
 router = APIRouter(prefix="/politicos", tags=["Políticos"])
 
@@ -16,7 +21,6 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
     politico = db.query(Politician).filter(Politician.external_id == external_id).first()
     if politico:
         return politico
-    # Busca na API da Câmara
     resp = httpx.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
@@ -46,7 +50,6 @@ def listar_politicos(
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    # Primeiro tenta no banco local
     query = db.query(Politician)
     if nome:
         query = query.filter(Politician.name.ilike(f"%{nome}%"))
@@ -78,7 +81,6 @@ def listar_politicos(
             ],
         }
 
-    # Se não tem no banco, busca na API da Câmara
     params = {"pagina": pagina, "itens": por_pagina, "ordem": "ASC", "ordenarPor": "nome"}
     if nome:
         params["nome"] = nome
@@ -107,6 +109,35 @@ def listar_politicos(
                 "foto": d.get("urlFoto"),
             }
             for d in dados
+        ],
+    }
+
+
+# ── Favoritar — /salvos/meus DEVE vir ANTES de /{external_id} ──────────────
+
+@router.get("/salvos/meus")
+def meus_politicos_salvos(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    salvos = (
+        db.query(SavedPolitician)
+        .filter(SavedPolitician.user_id == current_user.id)
+        .all()
+    )
+    return {
+        "total": len(salvos),
+        "politicos": [
+            {
+                "id": s.politician.id,
+                "external_id": s.politician.external_id,
+                "nome": s.politician.name,
+                "partido": s.politician.party,
+                "estado": s.politician.state,
+                "foto": s.politician.photo_url,
+                "favoritado_em": s.saved_at,
+            }
+            for s in salvos
         ],
     }
 
@@ -168,7 +199,6 @@ def votacoes_do_politico(
 ):
     politico = db.query(Politician).filter(Politician.external_id == external_id).first()
 
-    # Primeiro tenta no banco local
     if politico:
         votos = (
             db.query(PoliticianVote)
@@ -194,7 +224,6 @@ def votacoes_do_politico(
                 ],
             }
 
-    # Busca na API da Câmara
     resp = httpx.get(
         f"{CAMARA_API}/deputados/{external_id}/votacoes",
         params={"pagina": pagina, "itens": por_pagina},
@@ -211,12 +240,6 @@ def votacoes_do_politico(
         "votacoes": dados,
     }
 
-
-# ── Favoritar ──────────────────────────────────────────────────────────────
-from app.models.saved_politician import SavedPolitician
-from app.core.security import get_current_user
-from app.models.user import User
-from sqlalchemy.exc import IntegrityError
 
 @router.post("/{external_id}/salvar")
 def salvar_politico(
@@ -258,36 +281,6 @@ def remover_politico_salvo(
     db.commit()
     return {"mensagem": f"{politico.name} removido dos favoritos"}
 
-
-@router.get("/salvos/meus")
-def meus_politicos_salvos(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    salvos = (
-        db.query(SavedPolitician)
-        .filter(SavedPolitician.user_id == current_user.id)
-        .all()
-    )
-    return {
-        "total": len(salvos),
-        "politicos": [
-            {
-                "id": s.politician.id,
-                "external_id": s.politician.external_id,
-                "nome": s.politician.name,
-                "partido": s.politician.party,
-                "estado": s.politician.state,
-                "foto": s.politician.photo_url,
-                "favoritado_em": s.saved_at,
-            }
-            for s in salvos
-        ],
-    }
-
-
-# ── Notificações ───────────────────────────────────────────────────────────
-from app.services import politician_notification_service
 
 @router.post("/notificacoes/verificar")
 def verificar_notificacoes_politicos(

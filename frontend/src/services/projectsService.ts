@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { ApiProject, ApiProjectsResponse } from '@/types/project';
+import type { ApiProject, ApiProjectList } from '@/types/project';
 
 type ListarProjetosParams = {
   q?: string;
@@ -18,7 +18,7 @@ function buildQuery(params: ListarProjetosParams) {
   if (params.ano !== undefined) searchParams.set('ano', String(params.ano));
   if (params.ods !== undefined) searchParams.set('ods', String(params.ods));
   if (params.pagina !== undefined) searchParams.set('pagina', String(params.pagina));
-  if (params.porPagina !== undefined) searchParams.set('porPagina', String(params.porPagina));
+  if (params.porPagina !== undefined) searchParams.set('por_pagina', String(params.porPagina));
 
   return searchParams.toString();
 }
@@ -30,7 +30,7 @@ async function request<T>(path: string): Promise<T> {
 export const projectsService = {
   listar: (params: ListarProjetosParams = {}) => {
     const query = buildQuery(params);
-    return request<ApiProjectsResponse>(`/projetos${query ? `?${query}` : ''}`);
+    return request<ApiProjectList>(`/projetos${query ? `?${query}` : ''}`);
   },
 
   detalhe: (externalId: string) => {

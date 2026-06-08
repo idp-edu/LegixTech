@@ -51,16 +51,4 @@ export const politiciansService = {
   deixarDeSeguir: (politicianId: number) => {
     return api.delete(`/seguindo/${politicianId}`);
   },
-
-  salvar: (externalId: string) => {
-    return api.post<unknown>(`/politicos/${externalId}/salvar`);
-  },
-
-  removerSalvo: (externalId: string) => {
-    return api.delete(`/politicos/${externalId}/salvar`);
-  },
-
-  meusSalvos: () => {
-    return api.get<unknown>('/politicos/salvos/meus');
-  },
 };

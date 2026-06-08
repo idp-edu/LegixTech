@@ -41,16 +41,16 @@ export default function SavedTab() {
       .catch(() => showToastMsg('Erro ao carregar projetos salvos.'));
 
     politiciansService
-      .meusSalvos()
-      .then((res: any) =>
+      .getSeguindo()
+      .then((lista) =>
         setPoliticians(
-          (res.politicos ?? []).map((p: any) => ({
-            id: p.external_id ?? String(p.id),
-            name: p.nome,
-            party: p.partido ?? '',
-            state: p.estado ?? '',
-            house: (p.casa === 'senado' ? 'Senado' : 'Câmara') as 'Senado' | 'Câmara',
-            photo: p.foto ?? undefined,
+          lista.map((p) => ({
+            id: String(p.politician_id),
+            name: p.politician_name ?? 'Parlamentar',
+            party: p.politician_party ?? '',
+            state: p.politician_state ?? '',
+            house: 'Câmara' as 'Senado' | 'Câmara',
+            photo: p.politician_photo_url ?? undefined,
             bio: '',
             stats: {
               totalVotes: 0,
