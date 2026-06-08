@@ -1,7 +1,9 @@
 import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { api } from '@/services/api';
 
 interface Story {
   id: string;
@@ -53,6 +55,8 @@ interface DailyDigestStoriesProps {
 }
 
 export function DailyDigestStories({ isOpen, onClose, onViewProjects }: DailyDigestStoriesProps) {
+  const [stories, setStories] = useState<Story[]>(mockStories);
+  const [isLoading, setIsLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -62,13 +66,43 @@ export function DailyDigestStories({ isOpen, onClose, onViewProjects }: DailyDig
       setProgress(0);
       return;
     }
+
+    setIsLoading(true);
+    api
+      .get<{ proposicoes: Array<{ id: number; titulo: string; tipo: string }> }>('/daily-summary/')
+      .then((data) => {
+        if (data.proposicoes?.length > 0) {
+          setStories(
+            data.proposicoes.map((p) => ({
+              id: String(p.id),
+              title: `${p.tipo} - ${p.id}`,
+              content: p.titulo,
+              category: p.tipo || 'Legislativo',
+            }))
+          );
+          setCurrentIndex(0);
+          setProgress(0);
+        } else {
+          setStories(mockStories);
+        }
+      })
+      .catch(() => {
+        setStories(mockStories);
+      })
+      .finally(() => setIsLoading(false));
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || isLoading || stories.length === 0) return;
+
     const duration = 5000;
     const interval = 50;
     const increment = (interval / duration) * 100;
+
     const timer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          if (currentIndex < mockStories.length - 1) {
+          if (currentIndex < stories.length - 1) {
             setCurrentIndex((i) => i + 1);
             return 0;
           }
@@ -77,20 +111,32 @@ export function DailyDigestStories({ isOpen, onClose, onViewProjects }: DailyDig
         return prev + increment;
       });
     }, interval);
+
     return () => clearInterval(timer);
-  }, [isOpen, currentIndex]);
+  }, [isOpen, isLoading, currentIndex, stories.length]);
 
   if (!isOpen) return null;
 
-  const currentStory = mockStories[currentIndex];
-  const isLastStory = currentIndex === mockStories.length - 1;
+  if (isLoading) {
+    return (
+      <Modal visible animationType="fade" onRequestClose={onClose}>
+        <View className="flex-1 items-center justify-center bg-background">
+          <ActivityIndicator size="large" color="#1e40af" />
+          <Text className="mt-4 text-muted-foreground">Carregando resumo do dia...</Text>
+        </View>
+      </Modal>
+    );
+  }
+
+  const currentStory = stories[currentIndex];
+  const isLastStory = currentIndex === stories.length - 1;
 
   return (
     <Modal visible animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-background">
         <SafeAreaView className="flex-1">
           <View className="absolute left-0 right-0 top-0 z-10 flex-row gap-1 p-4">
-            {mockStories.map((_, index) => (
+            {stories.map((_, index) => (
               <View key={index} className="h-1 flex-1 overflow-hidden rounded-full bg-black/20">
                 <View
                   className="h-full rounded-full bg-primary"
@@ -142,7 +188,7 @@ export function DailyDigestStories({ isOpen, onClose, onViewProjects }: DailyDig
               <ChevronLeft size={24} color="#1a1a1a" />
             </Pressable>
             <Text className="self-center text-sm font-medium text-muted-foreground">
-              {currentIndex + 1} de {mockStories.length}
+              {currentIndex + 1} de {stories.length}
             </Text>
             <Pressable
               onPress={() => {
