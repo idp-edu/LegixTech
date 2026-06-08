@@ -209,3 +209,4 @@ __marimo__/
 backend/.env
 backend/legixtech.db
 backend/venv/
+backend/.env

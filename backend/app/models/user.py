@@ -15,3 +15,4 @@ class User(Base):
 
     saved_projects = relationship("SavedProject", back_populates="user")
     saved_politicians = relationship("SavedPolitician", back_populates="user")
+    followed_politicians = relationship("FollowedPolitician", back_populates="user")

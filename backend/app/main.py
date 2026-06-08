@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base
-from app.routers import auth, proposicoes, votacoes, partidos, deputados, eventos, frentes, orgaos, blocos, legislaturas, projects, saved, ods, notifications, daily_summary, politicians
+from app.routers import auth, proposicoes, votacoes, partidos, deputados, eventos, frentes, orgaos, blocos, legislaturas, projects, saved, ods, notifications, daily_summary, politicians, followed, chat
 
 # Importa models primeiro para o SQLAlchemy resolver os relacionamentos
 from app.models import user as user_model  # noqa
@@ -15,7 +15,7 @@ from app.models import relationships  # noqa
 from app.models.politician import Politician  # noqa
 from app.models.politician_vote import PoliticianVote  # noqa
 from app.models.saved_politician import SavedPolitician  # noqa
-
+from app.models.followed_politician import FollowedPolitician  # noqa
 
 
 api = FastAPI(
@@ -39,6 +39,8 @@ api.include_router(ods.router)
 api.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
 api.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
 api.include_router(politicians.router)
+api.include_router(followed.router)
+api.include_router(chat.router)
 api.include_router(proposicoes.router)
 api.include_router(votacoes.router)
 api.include_router(partidos.router)
