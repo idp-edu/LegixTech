@@ -15,6 +15,7 @@ from app.services import politician_notification_service
 router = APIRouter(prefix="/politicos", tags=["Políticos"])
 
 CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2"
+SENADO_API = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual"
 
 
 def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
@@ -41,11 +42,60 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
     return politico
 
 
+def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None) -> list:
+    """Busca senadores em exercício na API do Senado Federal."""
+    try:
+        resp = httpx.get(
+            SENADO_API,
+            headers={"Accept": "application/json"},
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return []
+
+        dados = resp.json()
+        senadores_raw = (
+            dados.get("ListaParlamentarEmExercicio", {})
+            .get("Parlamentares", {})
+            .get("Parlamentar", [])
+        )
+
+        resultado = []
+        for s in senadores_raw:
+            id_senador = s.get("IdentificacaoParlamentar", {})
+            nome_senador = id_senador.get("NomeParlamentar", "")
+            partido_senador = id_senador.get("SiglaPartidoParlamentar", "")
+            estado_senador = id_senador.get("UfParlamentar", "")
+            foto = id_senador.get("UrlFotoParlamentar", "")
+            codigo = str(id_senador.get("CodigoParlamentar", ""))
+
+            if nome and nome.lower() not in nome_senador.lower():
+                continue
+            if partido and partido.lower() not in partido_senador.lower():
+                continue
+            if estado and estado.upper() != estado_senador.upper():
+                continue
+
+            resultado.append({
+                "external_id": f"sen_{codigo}",
+                "nome": nome_senador,
+                "partido": partido_senador,
+                "estado": estado_senador,
+                "casa": "Senado",
+                "foto": foto,
+            })
+
+        return resultado
+    except Exception:
+        return []
+
+
 @router.get("/")
 def listar_politicos(
     nome: Optional[str] = Query(None),
     partido: Optional[str] = Query(None),
     estado: Optional[str] = Query(None),
+    casa: Optional[str] = Query(None, description="Câmara, Senado ou None para ambos"),
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -57,6 +107,8 @@ def listar_politicos(
         query = query.filter(Politician.party.ilike(f"%{partido}%"))
     if estado:
         query = query.filter(Politician.state == estado.upper())
+    if casa:
+        query = query.filter(Politician.house == casa)
 
     total_local = query.count()
 
@@ -81,6 +133,19 @@ def listar_politicos(
             ],
         }
 
+    # Senado: busca na API do Senado
+    if casa == "Senado":
+        senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
+        inicio = (pagina - 1) * por_pagina
+        return {
+            "total": len(senadores),
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "fonte": "senado_api",
+            "resultados": senadores[inicio: inicio + por_pagina],
+        }
+
+    # Câmara ou Todos: busca na API da Câmara
     params = {"pagina": pagina, "itens": por_pagina, "ordem": "ASC", "ordenarPor": "nome"}
     if nome:
         params["nome"] = nome
@@ -93,23 +158,38 @@ def listar_politicos(
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar API da Câmara")
 
-    dados = resp.json().get("dados", [])
+    dados_camara = resp.json().get("dados", [])
+    resultados_camara = [
+        {
+            "external_id": str(d.get("id")),
+            "nome": d.get("nome"),
+            "partido": d.get("siglaPartido"),
+            "estado": d.get("siglaUf"),
+            "casa": "Câmara",
+            "foto": d.get("urlFoto"),
+        }
+        for d in dados_camara
+    ]
+
+    # Se pediu "Todos", combina Câmara + Senado
+    if not casa or casa.lower() == "todos":
+        senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
+        inicio = (pagina - 1) * por_pagina
+        todos = resultados_camara + senadores
+        return {
+            "total": len(todos),
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "fonte": "camara_api+senado_api",
+            "resultados": todos[inicio: inicio + por_pagina],
+        }
+
     return {
-        "total": len(dados),
+        "total": len(resultados_camara),
         "pagina": pagina,
         "por_pagina": por_pagina,
         "fonte": "camara_api",
-        "resultados": [
-            {
-                "external_id": str(d.get("id")),
-                "nome": d.get("nome"),
-                "partido": d.get("siglaPartido"),
-                "estado": d.get("siglaUf"),
-                "casa": "Câmara",
-                "foto": d.get("urlFoto"),
-            }
-            for d in dados
-        ],
+        "resultados": resultados_camara,
     }
 
 

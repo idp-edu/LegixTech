@@ -1,5 +1,5 @@
 import {
-  ArrowLeft, Building2, Calendar, CheckCircle,
+  ArrowLeft, Bot, Building2, Calendar, CheckCircle,
   ExternalLink, MessageCircle, Share2, Users,
 } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -99,7 +99,13 @@ export function ProjectDetail({ project, onBack, onChatbotClick }: ProjectDetail
           <Text style={{ lineHeight: 24, color: colors.text }}>
             {project.summary ?? 'Resumo não disponível para este projeto.'}
           </Text>
-          <Text style={{ fontSize: 12, fontStyle: 'italic', color: colors.textMuted }}>Resumo exibido a partir dos dados da API</Text>
+          {/* Label de IA — V3 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Bot size={13} color={colors.textMuted} />
+            <Text style={{ fontSize: 12, fontStyle: 'italic', color: colors.textMuted }}>
+              Resumo gerado com auxílio de IA
+            </Text>
+          </View>
         </View>
 
         {project.themes?.length ? (

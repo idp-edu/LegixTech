@@ -3,6 +3,7 @@ from sqlalchemy import or_
 from app.models.project import Project
 from typing import Optional, List
 
+
 class ProposicaoRepository:
 
     @staticmethod
@@ -14,8 +15,16 @@ class ProposicaoRepository:
         return db.query(Project).filter(Project.id == id).first()
 
     @staticmethod
-    def listar(db: Session, skip: int = 0, limit: int = 20,
-               tipo: str = None, ano: int = None, q: str = None) -> List[Project]:
+    def listar(
+        db: Session,
+        skip: int = 0,
+        limit: int = 20,
+        tipo: str = None,
+        ano: int = None,
+        q: str = None,
+        # NOVO: aceita ods para pré-filtrar antes do classificador
+        ods: int = None,
+    ) -> List[Project]:
         query = db.query(Project)
         if tipo:
             query = query.filter(Project.tipo == tipo)
@@ -28,6 +37,9 @@ class ProposicaoRepository:
                     Project.ementa.ilike(f"%{q}%")
                 )
             )
+        # Não filtramos ODS aqui no banco (ODS é calculado dinamicamente
+        # pelo ods_classifier na ementa). Retornamos tudo e o router filtra.
+        # Mas passamos o parâmetro para o router saber que precisa filtrar.
         return query.offset(skip).limit(limit).all()
 
     @staticmethod

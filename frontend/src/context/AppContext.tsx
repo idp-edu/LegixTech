@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { registerUnauthorizedHandler } from '@/services/api';
 import {
   clearAuthStorage,
   getToken,
@@ -17,6 +18,7 @@ import {
   saveUser,
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
+import { API_URL } from '@/config/env';
 
 interface AppContextValue {
   isAuthenticated: boolean;
@@ -77,6 +79,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
+  const validateToken = async (storedToken: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+          Accept: 'application/json',
+        },
+      });
+      return response.ok;
+    } catch {
+      // Backend offline — mantém sessão para não deslogar sem motivo
+      return true;
+    }
+  };
+
   useEffect(() => {
     const hydrate = async () => {
       const [storedToken, storedUser] = await Promise.all([
@@ -85,9 +102,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (storedToken && storedUser) {
-        setTokenState(storedToken);
-        setUserState(storedUser);
-        setAuthMode(storedUser.provider ?? 'password');
+        const isValid = await validateToken(storedToken);
+        if (isValid) {
+          setTokenState(storedToken);
+          setUserState(storedUser);
+          setAuthMode(storedUser.provider ?? 'password');
+        } else {
+          // Token expirado → limpa tudo e vai para login
+          await clearAuthStorage();
+          setTokenState(null);
+          setUserState(null);
+          setAuthMode(null);
+        }
       } else {
         await clearAuthStorage();
         setTokenState(null);
@@ -99,6 +125,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     hydrate();
+  }, []);
+
+  // Registra handler global de 401 para logout automático
+  useEffect(() => {
+    registerUnauthorizedHandler(() => {
+      setAuthMode(null);
+      setTokenState(null);
+      setUserState(null);
+      setShowOnboarding(false);
+      setShowChatbot(false);
+    });
   }, []);
 
   const persistSession = useCallback(async (payload: SessionPayload) => {

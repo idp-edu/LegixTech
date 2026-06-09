@@ -1,5 +1,5 @@
 import { API_URL } from '@/config/env';
-import { getToken } from './storage';
+import { clearAuthStorage, getToken } from './storage';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -9,6 +9,12 @@ type RequestOptions = {
   token?: string;
   auth?: boolean;
 };
+
+let _onUnauthorized: (() => void) | null = null;
+
+export function registerUnauthorizedHandler(handler: () => void) {
+  _onUnauthorized = handler;
+}
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, token, auth = true } = options;
@@ -34,6 +40,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   } catch {
     throw new Error('Não foi possível conectar ao servidor.');
+  }
+
+  // Token expirado ou inválido → limpa sessão e redireciona para login
+  if (response.status === 401) {
+    await clearAuthStorage();
+    _onUnauthorized?.();
+    throw new Error('Sessão expirada. Faça login novamente.');
   }
 
   const contentType = response.headers.get('content-type') ?? '';

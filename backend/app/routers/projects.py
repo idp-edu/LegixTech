@@ -79,8 +79,17 @@ async def listar_projetos(
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    local = ProposicaoRepository.listar(db, skip=(pagina - 1) * por_pagina,
-                                        limit=por_pagina, tipo=tipo, ano=ano, q=q)
+    # CORRIGIDO: busca uma página maior quando há filtro de ODS,
+    # porque o filtro é feito após a classificação dinâmica
+    limit_busca = por_pagina * 5 if ods is not None else por_pagina
+    local = ProposicaoRepository.listar(
+        db,
+        skip=(pagina - 1) * por_pagina,
+        limit=limit_busca,
+        tipo=tipo,
+        ano=ano,
+        q=q,
+    )
     if local:
         resultado = []
         for p in local:
@@ -99,8 +108,12 @@ async def listar_projetos(
                 "estagio_atual": _inferir_estagio(p.situacao or ""),
                 "estagios": ESTAGIOS,
             }
+            # CORRIGIDO: filtro de ODS aplicado corretamente após classificação
             if ods is None or any(o["numero"] == ods for o in ods_list):
                 resultado.append(item)
+                if len(resultado) >= por_pagina:
+                    break
+
         return {"dados": resultado, "total": len(resultado), "pagina": pagina, "fonte": "banco_local"}
 
     data_inicio = f"{ano}-01-01" if ano else None
@@ -147,6 +160,7 @@ async def listar_projetos(
             ),
             "estagios": ESTAGIOS,
         }
+        # CORRIGIDO: filtro de ODS aplicado na API da Câmara também
         if ods is None or any(o["numero"] == ods for o in ods_list):
             resultado.append(item)
 
@@ -192,7 +206,13 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
     if resultado.get("fonte") == "banco_local":
         temas = resultado.get("temas", [])
         ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
-        return {**resultado, "ods": ods_list, "estagios": ESTAGIOS}
+        # CORRIGIDO: garante que temas e ods sempre vêm populados no detalhe
+        return {
+            **resultado,
+            "ods": ods_list,
+            "temas": temas,
+            "estagios": ESTAGIOS,
+        }
 
     try:
         autores_raw = await camara.obter_autores(int(external_id))
@@ -203,7 +223,13 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
         autores, temas = [], []
 
     ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
-    return {**resultado, "autores": autores, "temas": temas, "ods": ods_list, "estagios": ESTAGIOS}
+    return {
+        **resultado,
+        "autores": autores,
+        "temas": temas,
+        "ods": ods_list,
+        "estagios": ESTAGIOS,
+    }
 
 
 # ─── TRAMITAÇÃO ───────────────────────────────────────────────────────────────
