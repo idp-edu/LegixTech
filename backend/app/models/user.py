@@ -11,6 +11,7 @@ class User(Base):
     name = Column(String, nullable=False)
     picture = Column(String, nullable=True)
     google_id = Column(String, unique=True, nullable=True)
+    password_hash = Column(String, nullable=True)  # <- NOVO
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     saved_projects = relationship("SavedProject", back_populates="user")
