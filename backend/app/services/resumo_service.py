@@ -1,17 +1,10 @@
 """
 Gera resumos em linguagem acessível para proposições legislativas.
-Usa Gemini ou OpenAI se configurado, senão aplica glossário estático.
+Usa Gemini se GEMINI_API_KEY estiver configurado, senão aplica glossário estático.
 """
 import json
-import os
 import re
 from pathlib import Path
-from dotenv import load_dotenv
-
-load_dotenv()
-
-_LLM_PROVIDER = os.getenv("LLM_PROVIDER", "").lower()
-_LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
 _GLOSSARIO: dict | None = None
 
@@ -36,54 +29,42 @@ def _aplicar_glossario(texto: str) -> str:
 def _montar_prompt(ementa: str, tipo: str, numero: int, ano: int) -> str:
     glossario = _load_glossario()
     glossario_texto = "\n".join(f"- {k}: {v}" for k, v in list(glossario.items())[:15])
-    return f"""Você é um especialista em comunicação cidadã. Reescreva o resumo abaixo em linguagem simples e acessível para qualquer brasileiro, sem usar termos jurídicos complexos. O resumo deve ter no máximo 3 parágrafos curtos e explicar: O QUE o projeto propõe, POR QUE é importante para a população, e QUEM será afetado.
-
-PROPOSIÇÃO: {tipo} {numero}/{ano}
-EMENTA ORIGINAL: {ementa}
-
-GLOSSÁRIO DE TERMOS (use como referência para simplificar):
-{glossario_texto}
-
-RESPONDA APENAS com o resumo em português, sem introduções ou explicações adicionais."""
+    return (
+        f"Você é um especialista em comunicação cidadã. Reescreva o resumo abaixo em "
+        f"linguagem simples e acessível para qualquer brasileiro, sem usar termos jurídicos "
+        f"complexos. O resumo deve ter no máximo 3 parágrafos curtos e explicar: O QUE o "
+        f"projeto propõe, POR QUE é importante para a população, e QUEM será afetado.\n\n"
+        f"PROPOSIÇÃO: {tipo} {numero}/{ano}\n"
+        f"EMENTA ORIGINAL: {ementa}\n\n"
+        f"GLOSSÁRIO DE TERMOS (use como referência para simplificar):\n{glossario_texto}\n\n"
+        f"RESPONDA APENAS com o resumo em português, sem introduções ou explicações adicionais."
+    )
 
 
 async def _resumo_via_gemini(ementa: str, tipo: str, numero: int, ano: int) -> str:
-    import google.generativeai as genai
-    genai.configure(api_key=_LLM_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = _montar_prompt(ementa, tipo, numero, ano)
-    response = await model.generate_content_async(prompt)
-    return response.text.strip()
+    from google import genai
+    from google.genai import types
+    from app.core.config import settings
 
-
-async def _resumo_via_openai(ementa: str, tipo: str, numero: int, ano: int) -> str:
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(api_key=_LLM_API_KEY)
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
     prompt = _montar_prompt(ementa, tipo, numero, ano)
-    completion = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=400,
-        temperature=0.4,
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0.4),
     )
-    return completion.choices[0].message.content.strip()
+    return response.text.strip()
 
 
 async def gerar_resumo(ementa: str, tipo: str, numero: int, ano: int) -> dict:
     if not ementa:
         return {"resumo": "Ementa não disponível.", "fonte": "sem_ementa"}
 
-    if _LLM_API_KEY and _LLM_PROVIDER == "gemini":
+    from app.core.config import settings
+    if settings.GEMINI_API_KEY:
         try:
             resumo = await _resumo_via_gemini(ementa, tipo, numero, ano)
             return {"resumo": resumo, "fonte": "gemini"}
-        except Exception:
-            pass
-
-    if _LLM_API_KEY and _LLM_PROVIDER == "openai":
-        try:
-            resumo = await _resumo_via_openai(ementa, tipo, numero, ano)
-            return {"resumo": resumo, "fonte": "openai"}
         except Exception:
             pass
 

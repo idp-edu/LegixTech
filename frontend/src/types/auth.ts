@@ -15,7 +15,7 @@ export interface LoginPasswordPayload {
 }
 
 export interface LoginGooglePayload {
-  id_token: string;
+  token: string;       // campo que o backend /auth/google espera
   email?: string;
   name?: string;
   photoUrl?: string;

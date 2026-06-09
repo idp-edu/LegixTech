@@ -8,9 +8,20 @@ import type { Project, ProjectStatus } from '@/types/project';
 import { DailyDigestCard } from './DailyDigestCard';
 import { ProjectCard } from './ProjectCard';
 
+interface DailySummary {
+  data: string;
+  destaques: string[];
+  estatisticas: {
+    em_tramitacao: number;
+    aguardando_votacao: number;
+    aprovados: number;
+  };
+}
+
 interface HomeFeedProps {
   projects: Project[];
   savedProjects: string[];
+  dailySummary?: DailySummary | null;
   onProjectClick: (id: string) => void;
   onToggleSave: (id: string) => void;
   isDark: boolean;
@@ -21,6 +32,7 @@ interface HomeFeedProps {
 export function HomeFeed({
   projects,
   savedProjects,
+  dailySummary,
   onProjectClick,
   onToggleSave,
   isDark,
@@ -28,6 +40,11 @@ export function HomeFeed({
   onDigestClick,
 }: HomeFeedProps) {
   const { colors } = useTheme();
+
+  const stats = dailySummary?.estatisticas;
+  const emTramitacao = stats?.em_tramitacao ?? 0;
+  const aguardandoVotacao = stats?.aguardando_votacao ?? 0;
+  const aprovados = stats?.aprovados ?? 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -53,11 +70,7 @@ export function HomeFeed({
               onPress={onToggleTheme}
               style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 }}
             >
-              {isDark ? (
-                <Sun size={20} color={colors.text} />
-              ) : (
-                <Moon size={20} color={colors.text} />
-              )}
+              {isDark ? <Sun size={20} color={colors.text} /> : <Moon size={20} color={colors.text} />}
             </Pressable>
             <Pressable
               style={{ minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 }}
@@ -85,26 +98,45 @@ export function HomeFeed({
       >
         {onDigestClick && (
           <View style={{ marginBottom: 8 }}>
-            <DailyDigestCard onClick={onDigestClick} />
+            <DailyDigestCard onClick={onDigestClick} dailySummary={dailySummary ?? undefined} />
           </View>
         )}
 
+        {/* Cards de estatísticas — dados reais vindos do daily-summary */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
           <View style={{ flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.kpiGreenText, backgroundColor: colors.kpiGreenBg, padding: 16 }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiGreenText, marginBottom: 4 }}>24</Text>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiGreenText, textAlign: 'center' }}>Em Tramitação</Text>
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiGreenText, marginBottom: 4 }}>
+              {emTramitacao}
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiGreenText, textAlign: 'center' }}>
+              Em Tramitação
+            </Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.kpiAmberText, backgroundColor: colors.kpiAmberBg, padding: 16 }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiAmberText, marginBottom: 4 }}>12</Text>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiAmberText, textAlign: 'center' }}>Aguardando Votação</Text>
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiAmberText, marginBottom: 4 }}>
+              {aguardandoVotacao}
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiAmberText, textAlign: 'center' }}>
+              Aguardando{'\n'}Votação
+            </Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.kpiBlueText, backgroundColor: colors.kpiBlueBg, padding: 16 }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiBlueText, marginBottom: 4 }}>8</Text>
-            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiBlueText, textAlign: 'center' }}>Aprovados</Text>
+            <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiBlueText, marginBottom: 4 }}>
+              {aprovados}
+            </Text>
+            <Text style={{ fontSize: 12, fontWeight: '500', color: colors.kpiBlueText, textAlign: 'center' }}>
+              Aprovados
+            </Text>
           </View>
         </View>
 
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Atividade Recente</Text>
+
+        {projects.length === 0 && (
+          <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 24 }}>
+            Carregando projetos...
+          </Text>
+        )}
 
         {projects.map((project) => (
           <ProjectCard

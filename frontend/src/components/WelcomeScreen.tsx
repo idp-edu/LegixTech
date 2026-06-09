@@ -1,13 +1,14 @@
 import { Fingerprint, Globe, Scale, UserCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface WelcomeScreenProps {
+  loading?: boolean;
   onLogin: (type: 'google' | 'biometric' | 'guest') => void;
 }
 
-export function WelcomeScreen({ onLogin }: WelcomeScreenProps) {
+export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView
@@ -41,11 +42,19 @@ export function WelcomeScreen({ onLogin }: WelcomeScreenProps) {
 
         <View className="w-full max-w-sm gap-4">
           <Pressable
-            onPress={() => onLogin('google')}
+            onPress={() => !loading && onLogin('google')}
             className="min-h-14 w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-border bg-card px-6 py-4 active:border-primary"
+            disabled={loading}
+            style={{ opacity: loading ? 0.7 : 1 }}
           >
-            <Globe size={24} color="#1e40af" />
-            <Text className="font-medium text-foreground">Entrar com Google</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#1e40af" />
+            ) : (
+              <Globe size={24} color="#1e40af" />
+            )}
+            <Text className="font-medium text-foreground">
+              {loading ? 'Entrando...' : 'Entrar com Google'}
+            </Text>
           </Pressable>
 
           <Pressable

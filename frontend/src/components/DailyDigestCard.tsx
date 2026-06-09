@@ -5,26 +5,36 @@ import { Pressable, Text, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
 
-interface DailyDigestCardProps {
-  onClick: () => void;
+interface DailySummary {
+  data: string;
+  destaques: string[];
 }
 
-export function DailyDigestCard({ onClick }: DailyDigestCardProps) {
+interface DailyDigestCardProps {
+  onClick: () => void;
+  dailySummary?: DailySummary;
+}
+
+const FALLBACK_HIGHLIGHTS = [
+  'Projetos de saúde e educação em tramitação',
+  'Comissões analisam propostas de reforma',
+  'Votações previstas para esta semana',
+];
+
+export function DailyDigestCard({ onClick, dailySummary }: DailyDigestCardProps) {
   const [isRead, setIsRead] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const { colors } = useTheme();
 
-  const today = new Date().toLocaleDateString('pt-BR', {
+  const today = dailySummary?.data ?? new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   });
 
-  const highlights = [
-    'Lei de Acessibilidade aprovada no Senado',
-    'Energia Limpa: votação prevista para amanhã',
-    'Privacidade Digital em análise nas comissões',
-  ];
+  const highlights = dailySummary?.destaques?.length
+    ? dailySummary.destaques
+    : FALLBACK_HIGHLIGHTS;
 
   if (isMinimized && isRead) {
     return (
@@ -62,14 +72,20 @@ export function DailyDigestCard({ onClick }: DailyDigestCardProps) {
         <Pressable onPress={onClick} style={{ width: '100%', padding: 20 }}>
           <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Calendar size={20} color="white" />
-            <Text style={{ fontSize: 14, textTransform: 'capitalize', color: 'rgba(255,255,255,0.9)' }}>{today}</Text>
+            <Text style={{ fontSize: 14, textTransform: 'capitalize', color: 'rgba(255,255,255,0.9)' }}>
+              {today}
+            </Text>
           </View>
-          <Text style={{ marginBottom: 12, fontSize: 18, fontWeight: 'bold', color: 'white' }}>Resumo do Dia</Text>
+          <Text style={{ marginBottom: 12, fontSize: 18, fontWeight: 'bold', color: 'white' }}>
+            Resumo do Dia
+          </Text>
           <View style={{ marginBottom: 16, gap: 8 }}>
             {highlights.map((h, i) => (
               <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                 <TrendingUp size={16} color="rgba(255,255,255,0.8)" style={{ marginTop: 2 }} />
-                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.95)' }}>{h}</Text>
+                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.95)' }}>
+                  {h}
+                </Text>
               </View>
             ))}
           </View>

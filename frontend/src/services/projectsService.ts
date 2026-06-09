@@ -2,6 +2,7 @@ import { api } from './api';
 
 export interface Project {
   id: string;
+  external_id?: string;
   titulo?: string;
   title?: string;
   ementa?: string;
@@ -25,6 +26,9 @@ export interface ProjectsResponse {
 
 export interface Estatisticas {
   total: number;
+  em_tramitacao?: number;
+  aguardando_votacao?: number;
+  aprovados?: number;
   por_situacao: Record<string, number>;
 }
 
@@ -38,30 +42,33 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return searchParams.toString();
 }
 
-export async function listarProjetos(params?: {
-  q?: string;
-  tipo?: string;
-  ano?: number;
-  ods?: number;
-  pagina?: number;
-  por_pagina?: number;
-}): Promise<ProjectsResponse> {
-  // Trailing slash evita 307 redirect do FastAPI
-  const qs = buildQuery(params ?? {});
-  return api.get<ProjectsResponse>(`/projetos/${qs ? `?${qs}` : ''}`);
-}
+export const projectsService = {
+  listar: (params?: {
+    q?: string;
+    tipo?: string;
+    ano?: number;
+    ods?: number;
+    pagina?: number;
+    por_pagina?: number;
+  }): Promise<ProjectsResponse> => {
+    const qs = buildQuery(params ?? {});
+    return api.get<ProjectsResponse>(`/projetos/${qs ? `?${qs}` : ''}`);
+  },
 
-export async function buscarEstatisticas(): Promise<Estatisticas> {
-  return api.get<Estatisticas>('/projetos/estatisticas/', undefined, false);
-}
+  estatisticas: (): Promise<Estatisticas> => {
+    return api.get<Estatisticas>('/projetos/estatisticas/');
+  },
 
-export async function buscarResumoProjeto(external_id: string): Promise<{
-  resumo: string;
-  fonte: string;
-}> {
-  return api.get(`/projetos/${external_id}/resumo-acessivel/`);
-}
+  resumo: (external_id: string): Promise<{ resumo: string; fonte: string }> => {
+    return api.get(`/projetos/${external_id}/resumo-acessivel/`);
+  },
 
-export async function detalharProjeto(external_id: string): Promise<Project> {
-  return api.get<Project>(`/projetos/${external_id}/`);
-}
+  detalhar: (external_id: string): Promise<Project> => {
+    return api.get<Project>(`/projetos/${external_id}/`);
+  },
+};
+
+export const listarProjetos = projectsService.listar;
+export const buscarEstatisticas = projectsService.estatisticas;
+export const buscarResumoProjeto = projectsService.resumo;
+export const detalharProjeto = projectsService.detalhar;

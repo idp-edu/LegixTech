@@ -26,7 +26,6 @@ function buildQuery(params: ListarPoliticosParams): string {
   if (params.nome) searchParams.set('nome', params.nome);
   if (params.partido) searchParams.set('partido', params.partido);
   if (params.estado) searchParams.set('estado', params.estado);
-  // Só envia 'casa' se não for 'Todos'
   if (params.casa && params.casa !== 'Todos') searchParams.set('casa', params.casa);
   if (params.pagina !== undefined) searchParams.set('pagina', String(params.pagina));
   if (params.por_pagina !== undefined) searchParams.set('por_pagina', String(params.por_pagina));
@@ -36,12 +35,19 @@ function buildQuery(params: ListarPoliticosParams): string {
 export const politiciansService = {
   listar: (params: ListarPoliticosParams = {}) => {
     const query = buildQuery(params);
-    // Trailing slash evita 307 redirect do FastAPI
     return api.get<ApiPoliticiansResponse>(`/politicos/${query ? `?${query}` : ''}`);
   },
 
   detalhe: (externalId: string) => {
-    return api.get<unknown>(`/politicos/${externalId}`);
+    return api.get<unknown>(`/politicos/${externalId}/`); // trailing slash
+  },
+
+  projetos: (externalId: string) => {
+    return api.get<unknown>(`/politicos/${externalId}/projetos/`);
+  },
+
+  votacoes: (externalId: string) => {
+    return api.get<unknown>(`/politicos/${externalId}/votacoes/`);
   },
 
   getSeguindo: () => {
