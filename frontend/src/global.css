@@ -1,3 +1,4 @@
+/* csshint unknownAtRules: ignore */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

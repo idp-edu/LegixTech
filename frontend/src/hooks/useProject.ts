@@ -1,50 +1,30 @@
-import { useEffect, useState } from 'react';
+export type ProjectStatus = 'active' | 'pending' | 'archived' | 'approved';
 
-import { mockProjects } from '@/data/mockProjects';
-import { projectsService } from '@/services/projectsService';
-import { mapApiProjectToUiProject } from '@/mappers/projectMapper';
-import type { UiProject } from '@/types/project';
+export interface ApiProject {
+  id: number;
+  externalId?: string;
+  title: string;
+  year: number;
+  status: string;
+  sponsor: string;
+  themes?: string[];
+  ods?: number[];
+}
 
-type UseProjectResult = {
-  project: UiProject | null;
-  loading: boolean;
-  error: string | null;
-};
-
-const USE_MOCK = true; // mude para false quando o back estiver rodando
-
-export function useProject(id: string | undefined): UseProjectResult {
-  const [project, setProject] = useState<UiProject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchProject = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        if (USE_MOCK) {
-          const found = mockProjects.find((p) => p.id === id);
-          setProject(found ?? null);
-        } else {
-          const apiProject = await projectsService.detalhe(id);
-          setProject(mapApiProjectToUiProject(apiProject));
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar projeto.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProject();
-  }, [id]);
-
-  return { project, loading, error };
+export interface UiProject {
+  id: string;
+  title: string;
+  year: string;
+  status: ProjectStatus;
+  category: string;
+  summary: string;
+  sponsor: string;
+  themes: string[];
+  ods: number[];
+  
+  // 🚀 ADICIONADO: Propriedades opcionais necessárias para o Mock e Telas de Detalhes
+  trending?: boolean;
+  impact?: string[];
+  affected?: string[];
+  introduced?: string;
 }
