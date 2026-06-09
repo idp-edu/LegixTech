@@ -1,24 +1,7 @@
 import { useEffect, useState } from 'react';
 import { mockProjects } from '@/data/mockProjects';
 import { projectsService } from '@/services/projectsService';
-
-export type ProjectStatus = 'active' | 'pending' | 'archived' | 'approved';
-
-export interface UiProject {
-  id: string;
-  title: string;
-  year: string;
-  status: ProjectStatus;
-  category: string;
-  summary: string;
-  sponsor: string;
-  themes: string[];
-  ods: number[];
-  trending?: boolean;
-  impact?: string[];
-  affected?: string[];
-  introduced?: string;
-}
+import type { UiProject, ProjectStatus } from '@/types/project';
 
 type UseProjectResult = {
   project: UiProject | null;
@@ -26,7 +9,7 @@ type UseProjectResult = {
   error: string | null;
 };
 
-const USE_MOCK = true; // mude para false quando o backend estiver rodando
+const USE_MOCK = true;
 
 export function useProject(id: string | undefined): UseProjectResult {
   const [project, setProject] = useState<UiProject | null>(null);

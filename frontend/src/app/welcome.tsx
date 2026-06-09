@@ -4,10 +4,17 @@ import { Alert } from 'react-native';
 
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { useApp } from '@/context/AppContext';
+import { authService } from '@/services/authService';
 
 export default function WelcomeRoute() {
   const router = useRouter();
-  const { loginWithGoogle, continueAsGuest, isAuthenticated, isGuest } = useApp();
+  const {
+    loginWithGoogle,
+    loginWithPassword,
+    continueAsGuest,
+    isAuthenticated,
+    isGuest,
+  } = useApp();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -16,21 +23,38 @@ export default function WelcomeRoute() {
     }
   }, [isAuthenticated, isGuest, router]);
 
-  const handleLogin = async (type: 'google' | 'biometric' | 'guest') => {
+  const handleLogin = async (
+    type: 'google' | 'biometric' | 'guest' | 'password',
+    credentials?: { email: string; password: string },
+  ) => {
     if (type === 'guest' || type === 'biometric') {
       continueAsGuest();
+      return;
+    }
+
+    if (type === 'password' && credentials) {
+      setLoading(true);
+      try {
+        const response = await authService.loginWithPassword(credentials);
+        await loginWithPassword({
+          token: response.access_token,
+          user: response.user,
+        });
+      } catch (err: any) {
+        Alert.alert('Erro ao entrar', err?.message ?? 'Verifique seu e-mail e senha.');
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
     if (type === 'google') {
       setLoading(true);
       try {
-        // Em produção: usar expo-auth-session para obter id_token real do Google
-        // Por ora, entra direto como visitante com aviso informativo
         Alert.alert(
           'Login com Google',
           'Login real com Google requer configuração do OAuth. Entrando como visitante.',
-          [{ text: 'OK', onPress: () => continueAsGuest() }]
+          [{ text: 'OK', onPress: () => continueAsGuest() }],
         );
       } finally {
         setLoading(false);

@@ -30,15 +30,16 @@ export type ProjectStatus = 'active' | 'pending' | 'archived' | 'approved';
 
 export interface UiProject {
   id: string;
+  externalId?: string;
   title: string;
   year: string;
   status: ProjectStatus;
   summary?: string;
   sponsor?: string;
   category: string;
+  source?: string;
   themes?: string[];
   ods: number[];
-  // propriedades extras usadas nos detalhes e mock
   trending?: boolean;
   impact?: string[];
   affected?: string[];

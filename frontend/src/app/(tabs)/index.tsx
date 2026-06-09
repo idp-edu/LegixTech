@@ -5,7 +5,7 @@ import { HomeFeed } from '@/components/HomeFeed';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
 import { api } from '@/services/api';
-import type { Project } from '@/types/project';
+import type { UiProject } from '@/types/project';
 
 interface DailySummary {
   data: string;
@@ -29,28 +29,28 @@ export default function HomeTab() {
     showToastMsg,
   } = useApp();
 
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<UiProject[]>([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
 
   useEffect(() => {
-    // Busca projetos
     projectsService
       .listar({ por_pagina: 20 })
       .then((res) => {
-        const mapped: Project[] = (res.dados ?? []).map((p: any) => ({
+        const mapped: UiProject[] = (res.dados ?? []).map((p: any) => ({
           id: String(p.external_id ?? p.id),
-          externalId: String(p.external_id ?? p.id),
           title: p.ementa ?? p.titulo ?? 'Sem título',
-          year: p.ano ?? new Date().getFullYear(),
+          year: String(p.ano ?? new Date().getFullYear()),
           status: mapSituacao(p.situacao),
-          source: p.tipo ?? 'Projeto',
-          type: p.tipo ?? '',
+          category: p.tipo ?? 'Projeto',
+          summary: p.resumo ?? p.ementa ?? '',
+          sponsor: p.autor ?? '',
+          themes: p.temas ?? [],
+          ods: (p.ods ?? []).map((o: any) => (typeof o === 'object' ? o.numero : o)),
         }));
         setProjects(mapped);
       })
       .catch(() => showToastMsg('Erro ao carregar projetos.'));
 
-    // Busca resumo do dia
     api
       .get<DailySummary>('/daily-summary/')
       .then(setDailySummary)
@@ -77,11 +77,11 @@ export default function HomeTab() {
   );
 }
 
-function mapSituacao(situacao?: string): string {
+function mapSituacao(situacao?: string): 'active' | 'pending' | 'archived' | 'approved' {
   if (!situacao) return 'pending';
   const s = situacao.toLowerCase();
   if (s.includes('aprovad') || s.includes('sancion')) return 'approved';
-  if (s.includes('vota') || s.includes('pauta')) return 'voting';
-  if (s.includes('tramit') || s.includes('comiss')) return 'active';
-  return 'pending';
+  if (s.includes('arquivad')) return 'archived';
+  if (s.includes('vota') || s.includes('pauta') || s.includes('tramit')) return 'pending';
+  return 'active';
 }
