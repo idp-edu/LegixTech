@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-
 import { SavedProjects } from '@/components/SavedProjects';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
@@ -20,8 +19,16 @@ export default function SavedTab() {
   } = useApp();
 
   const [allProjects, setAllProjects] = useState<
-    Array<{ id: string; title: string; year: string; status: ProjectStatus; category: string }>
+    Array<{
+      id: string;
+      title: string;
+      year: string;
+      status: ProjectStatus;
+      category: string;
+      ods: number[]; 
+    }>
   >([]);
+  
   const [politicians, setPoliticians] = useState<Politician[]>([]);
 
   useEffect(() => {
@@ -29,13 +36,27 @@ export default function SavedTab() {
       .listar({ por_pagina: 100 })
       .then((res) =>
         setAllProjects(
-          (res.dados ?? []).map((p: any) => ({
-            id: String(p.external_id ?? p.id),
-            title: p.ementa ?? p.titulo ?? 'Sem título',
-            year: String(p.ano ?? ''),
-            status: 'pending' as ProjectStatus,
-            category: p.tipo ?? 'Projeto',
-          })),
+          (res.dados ?? []).map((p: any) => {
+            let odsArray: number[] = [];
+            
+            // CORREÇÃO: Adicionada tipagem explícita (n: number) nos filtros abaixo
+            if (Array.isArray(p.ods)) {
+              odsArray = p.ods.map((item: any) => Number(item)).filter((n: number) => !isNaN(n));
+            } else if (typeof p.ods === 'string' && p.ods.trim() !== '') {
+              odsArray = p.ods.split(',').map((item: string) => Number(item.trim())).filter((n: number) => !isNaN(n));
+            } else if (typeof p.ods === 'number') {
+              odsArray = [p.ods];
+            }
+
+            return {
+              id: String(p.external_id ?? p.id),
+              title: p.ementa ?? p.titulo ?? 'Sem título',
+              year: String(p.ano ?? ''),
+              status: 'pending' as ProjectStatus,
+              category: p.tipo ?? 'Projeto',
+              ods: odsArray,
+            };
+          }),
         ),
       )
       .catch(() => showToastMsg('Erro ao carregar projetos salvos.'));
@@ -79,12 +100,18 @@ export default function SavedTab() {
       savedPoliticians={savedPoliticians}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
-        if (isGuest) { requireLogin(); return; }
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
         toggleSaveProject(id);
       }}
       onPoliticianClick={(id) => router.push(`/politician/${id}` as never)}
       onRemovePolitician={(id) => {
-        if (isGuest) { requireLogin(); return; }
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
         removePolitician(id);
       }}
       onNavigateToSearch={() => router.push('/(tabs)/search' as never)}
