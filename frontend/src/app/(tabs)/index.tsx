@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { HomeFeed } from '@/components/HomeFeed';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
+import { mapApiListToUiList } from '@/mappers/projectMapper';
 import { api } from '@/services/api';
 import type { UiProject } from '@/types/project';
 
@@ -22,6 +23,7 @@ export default function HomeTab() {
   const {
     isGuest,
     savedProjects,
+    recentProjects,
     toggleSaveProject,
     isDark,
     toggleTheme,
@@ -34,20 +36,9 @@ export default function HomeTab() {
 
   useEffect(() => {
     projectsService
-      .listar({ por_pagina: 20 })
+      .listar({ por_pagina: 100 })
       .then((res) => {
-        const mapped: UiProject[] = (res.dados ?? []).map((p: any) => ({
-          id: String(p.external_id ?? p.id),
-          title: p.ementa ?? p.titulo ?? 'Sem título',
-          year: String(p.ano ?? new Date().getFullYear()),
-          status: mapSituacao(p.situacao),
-          category: p.tipo ?? 'Projeto',
-          summary: p.resumo ?? p.ementa ?? '',
-          sponsor: p.autor ?? '',
-          themes: p.temas ?? [],
-          ods: (p.ods ?? []).map((o: any) => (typeof o === 'object' ? o.numero : o)),
-        }));
-        setProjects(mapped);
+        setProjects(mapApiListToUiList(res.dados ?? []));
       })
       .catch(() => showToastMsg('Erro ao carregar projetos.'));
 
@@ -57,10 +48,15 @@ export default function HomeTab() {
       .catch(() => {});
   }, []);
 
+  const handleKpiClick = (_filter: 'active' | 'pending' | 'approved') => {
+    router.push('/(tabs)/search' as never);
+  };
+
   return (
     <HomeFeed
       projects={projects}
       savedProjects={savedProjects}
+      recentProjects={recentProjects}
       dailySummary={dailySummary}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
@@ -70,18 +66,10 @@ export default function HomeTab() {
         }
         toggleSaveProject(id);
       }}
+      onKpiClick={handleKpiClick}
       isDark={isDark}
       onToggleTheme={toggleTheme}
       onDigestClick={() => setShowDigestStories(true)}
     />
   );
-}
-
-function mapSituacao(situacao?: string): 'active' | 'pending' | 'archived' | 'approved' {
-  if (!situacao) return 'pending';
-  const s = situacao.toLowerCase();
-  if (s.includes('aprovad') || s.includes('sancion')) return 'approved';
-  if (s.includes('arquivad')) return 'archived';
-  if (s.includes('vota') || s.includes('pauta') || s.includes('tramit')) return 'pending';
-  return 'active';
 }

@@ -100,22 +100,34 @@ export function SearchScreen({
           {searchLoading && <ActivityIndicator size="small" color={colors.primary} />}
         </View>
 
+        {/* ── ABA PROJETOS ────────────────────────────────────────────────── */}
         {activeTab === 'projetos' && (
           <View style={{ gap: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
                 {searchQuery ? 'Resultados da Busca' : 'Todos os Projetos'}
               </Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted }}>
-                {filteredProjects.length} {filteredProjects.length === 1 ? 'projeto' : 'projetos'}
-              </Text>
+              {!searchLoading && (
+                <Text style={{ fontSize: 14, color: colors.textMuted }}>
+                  {filteredProjects.length} {filteredProjects.length === 1 ? 'projeto' : 'projetos'}
+                </Text>
+              )}
             </View>
 
-            {filteredProjects.length === 0 && !searchLoading ? (
+            {searchLoading ? (
+              <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={{ marginTop: 12, color: colors.textMuted }}>
+                  {searchQuery ? 'Buscando projetos...' : 'Carregando projetos...'}
+                </Text>
+              </View>
+            ) : filteredProjects.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
                 <Search size={48} color={colors.textMuted} />
                 <Text style={{ marginTop: 12, color: colors.textMuted }}>
-                  {searchQuery ? 'Nenhum projeto encontrado' : 'Digite para buscar projetos'}
+                  {searchQuery
+                    ? `Nenhum projeto encontrado para "${searchQuery}"`
+                    : 'Nenhum projeto disponível no momento'}
                 </Text>
               </View>
             ) : (
@@ -132,6 +144,7 @@ export function SearchScreen({
           </View>
         )}
 
+        {/* ── ABA PARLAMENTARES ───────────────────────────────────────────── */}
         {activeTab === 'parlamentares' && (
           <View style={{ gap: 16 }}>
             <View>
