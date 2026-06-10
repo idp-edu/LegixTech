@@ -41,7 +41,7 @@ export function ProfileScreen({
   const displayName =
     user?.name && user.name.trim().length > 0
       ? user.name
-      : user?.email?.split('@')[0] ?? 'Usuário';
+      : 'Usuário';
 
   const displayEmail = user?.email ?? 'E-mail não informado';
 

@@ -37,7 +37,15 @@ export default function WelcomeRoute() {
       setLoading(true);
       try {
         const response = await authService.loginWithPassword(credentials);
-        await loginWithPassword({ token: response.access_token, user: response.user });
+        await loginWithPassword({
+          token: response.access_token,
+          user: {
+            id: String(response.user?.id ?? ''),
+            name: response.user?.name ?? '',
+            email: response.user?.email ?? credentials.email,
+            provider: 'password',
+          },
+        });
       } catch (err: any) {
         Alert.alert('Erro ao entrar', err?.message ?? 'Verifique seu e-mail e senha.');
       } finally {
@@ -54,7 +62,15 @@ export default function WelcomeRoute() {
           email: credentials.email,
           password: credentials.password,
         });
-        await registerWithPassword({ token: response.access_token, user: response.user });
+        await registerWithPassword({
+          token: response.access_token,
+          user: {
+            id: String(response.user?.id ?? ''),
+            name: response.user?.name ?? credentials.name ?? '',
+            email: response.user?.email ?? credentials.email,
+            provider: 'password',
+          },
+        });
       } catch (err: any) {
         Alert.alert('Erro ao criar conta', err?.message ?? 'Verifique os dados e tente novamente.');
       } finally {
