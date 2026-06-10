@@ -16,6 +16,10 @@ import {
   removeUser,
   saveToken,
   saveUser,
+  getSavedProjects,
+  saveSavedProjects,
+  getRecentProjects,
+  saveRecentProjects,
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
@@ -29,6 +33,7 @@ interface AppContextValue {
   isDark: boolean;
   savedProjects: string[];
   savedPoliticians: string[];
+  recentProjects: string[];
   showOnboarding: boolean;
   showDigestStories: boolean;
   showChatbot: boolean;
@@ -37,12 +42,14 @@ interface AppContextValue {
   showToast: boolean;
   loginWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   loginWithGoogle: (payload: { token: string; user?: AuthUser }) => Promise<void>;
+  registerWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   continueAsGuest: () => void;
   logout: () => Promise<void>;
   setUser: (user: AuthUser | null) => Promise<void>;
   setToken: (token: string | null) => Promise<void>;
   toggleTheme: () => void;
   toggleSaveProject: (id: string) => void;
+  addRecentProject: (id: string) => void;
   toggleSavePolitician: (id: string) => void;
   removePolitician: (id: string) => void;
   setShowOnboarding: (v: boolean) => void;
@@ -72,6 +79,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false);
   const [savedProjects, setSavedProjects] = useState<string[]>([]);
   const [savedPoliticians, setSavedPoliticians] = useState<string[]>([]);
+  const [recentProjects, setRecentProjects] = useState<string[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showDigestStories, setShowDigestStories] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
@@ -96,10 +104,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
-      const [storedToken, storedUser] = await Promise.all([
+      const [storedToken, storedUser, storedSaved, storedRecent] = await Promise.all([
         getToken(),
         getUser<AuthUser>(),
+        getSavedProjects(),
+        getRecentProjects(),
       ]);
+      setSavedProjects(storedSaved);
+      setRecentProjects(storedRecent);
 
       if (storedToken && storedUser) {
         const isValid = await validateToken(storedToken);
@@ -170,6 +182,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [persistSession],
   );
 
+  const registerWithPassword = useCallback(
+    async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
+      await persistSession({
+        token: nextToken,
+        user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
+        mode: 'password',
+      });
+      setShowOnboarding(true);
+    },
+    [persistSession],
+  );
+
   const continueAsGuest = useCallback(() => {
     setAuthMode('guest');
     setTokenState(null);
@@ -186,7 +210,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUserState(null);
     setShowOnboarding(false);
     setShowChatbot(false);
-    await clearAuthStorage();
+    setSavedProjects([]);
+    setRecentProjects([]);
+    await Promise.all([clearAuthStorage(), saveSavedProjects([]), saveRecentProjects([])]);
   }, []);
 
   const setToken = useCallback(async (nextToken: string | null) => {
@@ -210,7 +236,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = useCallback(() => setIsDark((p) => !p), []);
 
   const toggleSaveProject = useCallback((id: string) => {
-    setSavedProjects((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setSavedProjects((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      saveSavedProjects(next);
+      return next;
+    });
+  }, []);
+
+  const addRecentProject = useCallback((id: string) => {
+    setRecentProjects((prev) => {
+      const filtered = prev.filter((p) => p !== id);
+      const next = [id, ...filtered].slice(0, 20);
+      saveRecentProjects(next);
+      return next;
+    });
   }, []);
 
   const toggleSavePolitician = useCallback((id: string) => {
@@ -244,6 +283,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     isDark,
     savedProjects,
     savedPoliticians,
+    recentProjects,
     showOnboarding,
     showDigestStories,
     showChatbot,
@@ -252,12 +292,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast,
     loginWithPassword,
     loginWithGoogle,
+    registerWithPassword,
     continueAsGuest,
     logout,
     setUser,
     setToken,
     toggleTheme,
     toggleSaveProject,
+    addRecentProject,
     toggleSavePolitician,
     removePolitician,
     setShowOnboarding,

@@ -36,3 +36,23 @@ export async function removeUser() {
 export async function clearAuthStorage() {
   await Promise.all([removeToken(), removeUser()]);
 }
+const SAVED_PROJECTS_KEY = 'legixtech:saved_projects';
+const RECENT_PROJECTS_KEY = 'legixtech:recent_projects';
+
+export async function getSavedProjects(): Promise<string[]> {
+  const v = await AsyncStorage.getItem(SAVED_PROJECTS_KEY);
+  return v ? JSON.parse(v) : [];
+}
+
+export async function saveSavedProjects(ids: string[]) {
+  await AsyncStorage.setItem(SAVED_PROJECTS_KEY, JSON.stringify(ids));
+}
+
+export async function getRecentProjects(): Promise<string[]> {
+  const v = await AsyncStorage.getItem(RECENT_PROJECTS_KEY);
+  return v ? JSON.parse(v) : [];
+}
+
+export async function saveRecentProjects(ids: string[]) {
+  await AsyncStorage.setItem(RECENT_PROJECTS_KEY, JSON.stringify(ids));
+}

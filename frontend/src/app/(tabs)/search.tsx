@@ -3,10 +3,8 @@ import { useRouter } from 'expo-router';
 
 import { SearchScreen } from '@/components/SearchScreen';
 import { useApp } from '@/context/AppContext';
-import { projectsService } from '@/services/projectsService';
 import { politiciansService } from '@/services/politiciansService';
 import type { Politician } from '@/data/mockPoliticians';
-import type { ProjectStatus } from '@/types/project';
 
 export default function SearchTab() {
   const router = useRouter();
@@ -19,27 +17,9 @@ export default function SearchTab() {
     showToastMsg,
   } = useApp();
 
-  const [projects, setProjects] = useState<
-    Array<{ id: string; title: string; year: string; status: ProjectStatus; category: string }>
-  >([]);
   const [politicians, setPoliticians] = useState<Politician[]>([]);
 
   useEffect(() => {
-    projectsService
-      .listar({ por_pagina: 50 })
-      .then((res) =>
-        setProjects(
-          (res.dados ?? []).map((p: any) => ({
-            id: String(p.external_id ?? p.id),
-            title: p.ementa ?? p.titulo ?? 'Sem título',
-            year: String(p.ano ?? ''),
-            status: 'pending' as ProjectStatus,
-            category: p.tipo ?? 'Projeto',
-          })),
-        ),
-      )
-      .catch(() => showToastMsg('Erro ao carregar projetos.'));
-
     politiciansService
       .listar({ por_pagina: 100 })
       .then((res) =>
@@ -68,7 +48,6 @@ export default function SearchTab() {
 
   return (
     <SearchScreen
-      projects={projects}
       politicians={politicians}
       savedProjects={savedProjects}
       savedPoliticians={savedPoliticians}

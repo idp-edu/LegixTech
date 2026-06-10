@@ -1,22 +1,15 @@
 import { Search, UserCheck, UserCircle, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/useTheme';
+import { useProjectSearch } from '@/hooks/useProjectSearch';
 import type { Politician } from '@/data/mockPoliticians';
-import type { ProjectStatus } from '@/types/project';
 
 import { ProjectCard } from './ProjectCard';
 
 interface SearchScreenProps {
-  projects: Array<{
-    id: string;
-    title: string;
-    year: string;
-    status: ProjectStatus;
-    category: string;
-  }>;
   politicians: Politician[];
   savedProjects: string[];
   savedPoliticians?: string[];
@@ -27,16 +20,10 @@ interface SearchScreenProps {
 }
 
 function getInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
 export function SearchScreen({
-  projects,
   politicians,
   savedProjects,
   savedPoliticians = [],
@@ -51,8 +38,8 @@ export function SearchScreen({
   const [stateFilter, setStateFilter] = useState('Todos');
   const { colors } = useTheme();
 
-  const filteredProjects = projects.filter((p) =>
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  const { results: filteredProjects, loading: searchLoading } = useProjectSearch(
+    activeTab === 'projetos' ? searchQuery : '',
   );
 
   const availableStates = ['Todos', ...Array.from(new Set(politicians.map((p) => p.state)))].sort();
@@ -73,36 +60,14 @@ export function SearchScreen({
 
   const TabButton = ({ id, label }: { id: typeof activeTab; label: string }) => (
     <Pressable
-      onPress={() => {
-        setActiveTab(id);
-        setSearchQuery('');
-      }}
-      style={{
-        position: 'relative',
-        minHeight: 44,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-      }}
+      onPress={() => { setActiveTab(id); setSearchQuery(''); }}
+      style={{ position: 'relative', minHeight: 44, paddingHorizontal: 16, paddingVertical: 12 }}
     >
-      <Text
-        style={{
-          color: activeTab === id ? colors.primary : colors.textMuted,
-          fontWeight: activeTab === id ? '500' : '400',
-        }}
-      >
+      <Text style={{ color: activeTab === id ? colors.primary : colors.textMuted, fontWeight: activeTab === id ? '500' : '400' }}>
         {label}
       </Text>
       {activeTab === id && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 2,
-            backgroundColor: colors.primary,
-          }}
-        />
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, backgroundColor: colors.primary }} />
       )}
     </Pressable>
   );
@@ -111,64 +76,28 @@ export function SearchScreen({
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <SafeAreaView
         edges={['top']}
-        style={{
-          borderBottomWidth: 1,
-          borderBottomColor: colors.divider,
-          backgroundColor: colors.surface,
-          paddingHorizontal: 16,
-          paddingVertical: 16,
-        }}
+        style={{ borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 16 }}
       >
-        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>
-          Busca & Descoberta
-        </Text>
-        <Text style={{ marginTop: 4, fontSize: 14, color: colors.textMuted }}>
-          Encontre legislação e parlamentares
-        </Text>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Busca & Descoberta</Text>
+        <Text style={{ marginTop: 4, fontSize: 14, color: colors.textMuted }}>Encontre legislação e parlamentares</Text>
       </SafeAreaView>
 
-      <View
-        style={{
-          flexDirection: 'row',
-          borderBottomWidth: 1,
-          borderBottomColor: colors.divider,
-          backgroundColor: colors.surface,
-          paddingHorizontal: 16,
-        }}
-      >
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: colors.surface, paddingHorizontal: 16 }}>
         <TabButton id="projetos" label="Projetos" />
         <TabButton id="parlamentares" label="Parlamentares" />
       </View>
 
-      <ScrollView
-        style={{ flex: 1, paddingHorizontal: 16 }}
-        contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 16 }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-          }}
-        >
+      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12 }}>
           <Search size={20} color={colors.textMuted} />
           <TextInput
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder={
-              activeTab === 'projetos'
-                ? 'Buscar projetos por palavra-chave...'
-                : 'Buscar por nome, partido ou estado...'
-            }
+            placeholder={activeTab === 'projetos' ? 'Buscar projetos por palavra-chave...' : 'Buscar por nome, partido ou estado...'}
             placeholderTextColor={colors.textMuted}
             style={{ flex: 1, minHeight: 44, color: colors.text, fontSize: 16 }}
           />
+          {searchLoading && <ActivityIndicator size="small" color={colors.primary} />}
         </View>
 
         {activeTab === 'projetos' && (
@@ -182,7 +111,7 @@ export function SearchScreen({
               </Text>
             </View>
 
-            {filteredProjects.length === 0 ? (
+            {filteredProjects.length === 0 && !searchLoading ? (
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
                 <Search size={48} color={colors.textMuted} />
                 <Text style={{ marginTop: 12, color: colors.textMuted }}>
@@ -206,70 +135,30 @@ export function SearchScreen({
         {activeTab === 'parlamentares' && (
           <View style={{ gap: 16 }}>
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>
-                Casa Legislativa
-              </Text>
+              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Casa Legislativa</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {(['Todos', 'Senado', 'Câmara'] as const).map((house) => (
                   <Pressable
                     key={house}
                     onPress={() => setHouseFilter(house)}
-                    style={{
-                      minHeight: 44,
-                      borderRadius: 999,
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      backgroundColor: houseFilter === house ? colors.primary : colors.surface,
-                      borderWidth: houseFilter === house ? 0 : 1,
-                      borderColor: colors.border,
-                      justifyContent: 'center',
-                    }}
+                    style={{ minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: houseFilter === house ? colors.primary : colors.surface, borderWidth: houseFilter === house ? 0 : 1, borderColor: colors.border, justifyContent: 'center' }}
                   >
-                    <Text
-                      style={{
-                        fontWeight: houseFilter === house ? '500' : '400',
-                        color: houseFilter === house ? '#fff' : colors.text,
-                      }}
-                    >
-                      {house}
-                    </Text>
+                    <Text style={{ fontWeight: houseFilter === house ? '500' : '400', color: houseFilter === house ? '#fff' : colors.text }}>{house}</Text>
                   </Pressable>
                 ))}
               </View>
             </View>
 
             <View>
-              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>
-                Estado
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 8, paddingBottom: 8 }}
-              >
+              <Text style={{ marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Estado</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
                 {availableStates.map((state) => (
                   <Pressable
                     key={state}
                     onPress={() => setStateFilter(state)}
-                    style={{
-                      minHeight: 44,
-                      borderRadius: 999,
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      backgroundColor: stateFilter === state ? colors.primary : colors.surface,
-                      borderWidth: stateFilter === state ? 0 : 1,
-                      borderColor: colors.border,
-                      justifyContent: 'center',
-                    }}
+                    style={{ minHeight: 44, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: stateFilter === state ? colors.primary : colors.surface, borderWidth: stateFilter === state ? 0 : 1, borderColor: colors.border, justifyContent: 'center' }}
                   >
-                    <Text
-                      style={{
-                        fontWeight: stateFilter === state ? '500' : '400',
-                        color: stateFilter === state ? '#fff' : colors.text,
-                      }}
-                    >
-                      {state}
-                    </Text>
+                    <Text style={{ fontWeight: stateFilter === state ? '500' : '400', color: stateFilter === state ? '#fff' : colors.text }}>{state}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -278,12 +167,8 @@ export function SearchScreen({
             {!shouldShowPoliticians ? (
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
                 <UserCircle size={48} color={colors.textMuted} />
-                <Text style={{ marginTop: 12, fontWeight: '500', color: colors.text }}>
-                  Pesquise ou filtre para encontrar parlamentares
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>
-                  Use a busca ou selecione filtros acima
-                </Text>
+                <Text style={{ marginTop: 12, fontWeight: '500', color: colors.text }}>Pesquise ou filtre para encontrar parlamentares</Text>
+                <Text style={{ fontSize: 14, color: colors.textMuted }}>Use a busca ou selecione filtros acima</Text>
               </View>
             ) : filteredPoliticians.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
@@ -293,79 +178,32 @@ export function SearchScreen({
             ) : (
               filteredPoliticians.map((politician) => {
                 const isFollowing = savedPoliticians.includes(politician.id);
-
                 return (
-                  <View
-                    key={politician.id}
-                    style={{
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: colors.surface,
-                      padding: 16,
-                    }}
-                  >
+                  <View key={politician.id} style={{ borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                      <Pressable
-                        onPress={() => onPoliticianClick(politician.id)}
-                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 16 }}
-                      >
-                        <View
-                          style={{
-                            height: 56,
-                            width: 56,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: 28,
-                            backgroundColor: colors.primary,
-                          }}
-                        >
-                          <Text style={{ fontWeight: 'bold', color: '#fff' }}>
-                            {getInitials(politician.name)}
-                          </Text>
+                      <Pressable onPress={() => onPoliticianClick(politician.id)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                        <View style={{ height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28, backgroundColor: colors.primary }}>
+                          <Text style={{ fontWeight: 'bold', color: '#fff' }}>{getInitials(politician.name)}</Text>
                         </View>
-
                         <View style={{ flex: 1 }}>
-                          <Text style={{ marginBottom: 4, fontWeight: '500', color: colors.text }}>
-                            {politician.name}
-                          </Text>
-                          <Text style={{ fontSize: 14, color: colors.textMuted }}>
-                            {politician.party} • {politician.state} • {politician.house}
-                          </Text>
+                          <Text style={{ marginBottom: 4, fontWeight: '500', color: colors.text }}>{politician.name}</Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted }}>{politician.party} • {politician.state} • {politician.house}</Text>
                         </View>
                       </Pressable>
-
                       {onToggleSavePolitician && (
                         <Pressable
                           onPress={() => onToggleSavePolitician(politician.id)}
-                          style={{
-                            minHeight: 44,
-                            minWidth: 100,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: 8,
-                            borderRadius: 8,
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: isFollowing ? colors.primary : colors.border,
-                          }}
+                          style={{ minHeight: 44, minWidth: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: isFollowing ? colors.primary : colors.border }}
                         >
                           {isFollowing ? (
                             <>
                               <UserCheck size={18} color={colors.primary} />
-                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.primary }}>
-                                Seguindo
-                              </Text>
+                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.primary }}>Seguindo</Text>
                             </>
                           ) : (
                             <>
                               <UserPlus size={18} color={colors.text} />
-                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>
-                                Seguir
-                              </Text>
+                              <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text }}>Seguir</Text>
                             </>
                           )}
                         </Pressable>
