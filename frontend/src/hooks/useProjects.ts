@@ -21,7 +21,7 @@ type UseProjectsResult = {
   refetch: () => void;
 };
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export function useProjects(filters: Filters = {}): UseProjectsResult {
   const [projects, setProjects] = useState<UiProject[]>([]);
