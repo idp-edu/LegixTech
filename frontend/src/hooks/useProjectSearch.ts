@@ -11,7 +11,7 @@ export function useProjectSearch(query: string) {
   const search = useCallback(async (q: string) => {
     setLoading(true);
     try {
-      const resp = await projectsService.listar({ q: q || undefined });
+      const resp = await projectsService.listar(q.trim() ? { q: q.trim(), por_pagina: 20 } : { por_pagina: 20 });
       setResults(mapApiListToUiList(resp.dados));
     } catch {
       setResults([]);

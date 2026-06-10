@@ -33,7 +33,7 @@ export function mapApiProjectToUiProject(p: any): UiProject {
     status: normalizeStatus(p.situacao ?? p.status),
     category: p.tipo ?? p.type ?? p.descricaoTipo ?? p.siglaTipo ?? '',
     summary: p.ementa ?? p.abstract ?? p.summary ?? '',
-    sponsor: p.autor ?? p.sponsor ?? '',
+    sponsor: (Array.isArray(p.autores) ? p.autores.map((a: any) => a.nome ?? a).join(', ') : null) ?? p.autor ?? p.sponsor ?? '',
     themes: p.temas ?? p.themes ?? [],
     ods: Array.isArray(p.ods)
       ? p.ods.map((o: any) => (typeof o === 'object' ? o.numero : o))

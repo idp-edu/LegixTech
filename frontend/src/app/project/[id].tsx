@@ -1,3 +1,4 @@
+import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 
@@ -8,10 +9,17 @@ import { useProject } from '@/hooks/useProject';
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { isGuest, openChatbot, showToastMsg } = useApp();
+  const { isGuest, openChatbot, showToastMsg, savedProjects, toggleSaveProject, addRecentProject } = useApp();
 
   const projectId = Array.isArray(id) ? id[0] : id;
   const { project, loading, error } = useProject(projectId);
+
+  // Registra no histórico quando o projeto carrega
+  const hasRegistered = React.useRef(false);
+  if (project && !hasRegistered.current) {
+    hasRegistered.current = true;
+    addRecentProject(project.id);
+  }
 
   if (loading) {
     return (
@@ -21,7 +29,7 @@ export default function ProjectDetailScreen() {
     );
   }
 
-  if (error || !project) {
+  if (!loading && (error || !project)) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="mb-4 text-center text-foreground">
@@ -37,6 +45,8 @@ export default function ProjectDetailScreen() {
   return (
     <ProjectDetail
       project={project}
+      saved={savedProjects.includes(project.id)}
+      onSave={() => toggleSaveProject(project.id)}
       onBack={() => router.back()}
       onChatbotClick={() => {
         if (isGuest) {
