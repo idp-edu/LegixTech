@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
-
 import { ProjectDetail } from '@/components/ProjectDetail';
 import { useApp } from '@/context/AppContext';
 import { useProject } from '@/hooks/useProject';
@@ -16,6 +15,7 @@ export default function ProjectDetailScreen() {
 
   // Registra no histórico quando o projeto carrega
   const hasRegistered = React.useRef(false);
+
   if (project && !hasRegistered.current) {
     hasRegistered.current = true;
     addRecentProject(project.id);
@@ -44,9 +44,9 @@ export default function ProjectDetailScreen() {
 
   return (
     <ProjectDetail
-      project={project}
-      saved={savedProjects.includes(project.id)}
-      onSave={() => toggleSaveProject(project.id)}
+      project={project!}
+      saved={savedProjects.includes(project!.id)}
+      onSave={() => toggleSaveProject(project!.id)}
       onBack={() => router.back()}
       onChatbotClick={() => {
         if (isGuest) {
