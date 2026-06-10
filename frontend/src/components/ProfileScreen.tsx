@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import type { ProjectStatus } from '@/types/project';
 
@@ -46,6 +47,20 @@ export function ProfileScreen({
     dailyDigest: false,
   });
   const { colors } = useTheme();
+  const { user } = useApp();
+
+  const displayName =
+    user?.name && user.name.trim().length > 0
+      ? user.name
+      : user?.email?.split('@')[0] ?? 'Usuário';
+
+  const displayEmail = user?.email ?? 'E-mail não informado';
+
+  const initials = displayName
+    .split(' ')
+    .slice(0, 2)
+    .map((n: string) => n[0]?.toUpperCase() ?? '')
+    .join('');
 
   const menuItems: Array<{
     icon: typeof Bookmark;
@@ -103,14 +118,14 @@ export function ProfileScreen({
                 backgroundColor: 'rgba(255,255,255,0.2)',
               }}
             >
-              <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>JD</Text>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>{initials}</Text>
             </View>
             <View>
               <Text style={{ marginBottom: 4, fontSize: 20, fontWeight: 'bold', color: 'white' }}>
-                John Doe
+                {displayName}
               </Text>
               <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>
-                john.doe@example.com
+                {displayEmail}
               </Text>
             </View>
           </View>
