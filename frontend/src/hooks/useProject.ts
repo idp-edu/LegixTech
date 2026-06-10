@@ -1,48 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { projectsService } from '@/services/projectsService';
-import { mapApiProjectToUiProject } from '@/mappers/projectMapper';
+import { mapApiListToUiList } from '@/mappers/projectMapper';
 import type { UiProject } from '@/types/project';
 
-type UseProjectResult = {
-  project: UiProject | null;
-  loading: boolean;
-  error: string | null;
-};
+export function useProjectSearch(query: string) {
+  const [results, setResults] = useState<UiProject[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-export function useProject(id: string | undefined): UseProjectResult {
-  const [project, setProject] = useState<UiProject | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const search = useCallback(async (q: string) => {
+    setLoading(true);
+    try {
+      const temQuery = q.trim().length > 0;
+
+      const resp = await projectsService.listar(
+        temQuery
+          ? { q: q.trim(), por_pagina: 20 }   // busca específica: 20 resultados
+          : { por_pagina: 100 }                 // lista geral: até 100
+      );
+
+      setResults(mapApiListToUiList(resp.dados));
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!id) {
-      setError('ID do projeto não informado.');
-      setLoading(false);
-      return;
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    setLoading(true);
-    setError(null);
+    // Sem query: carrega imediatamente (sem debounce)
+    // Com query: aguarda 400ms para não disparar a cada letra
+    const delay = query.trim().length > 0 ? 400 : 0;
 
-    projectsService
-      .detalhar(id)
-      .then((raw: any) => {
-        const mapped = mapApiProjectToUiProject(raw);
-        // Tenta buscar resumo acessível gerado por IA; usa ementa como fallback
-        projectsService
-          .resumo(mapped.id)
-          .then(({ resumo }) => {
-            setProject({ ...mapped, summary: resumo });
-          })
-          .catch(() => {
-            setProject(mapped);
-          });
-      })
-      .catch((err: any) => {
-        setError(err?.message ?? 'Erro ao carregar projeto.');
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
+    debounceRef.current = setTimeout(() => search(query), delay);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, search]);
 
-  return { project, loading, error };
+  return { results, loading };
 }

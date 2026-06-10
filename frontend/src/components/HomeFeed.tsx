@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/useTheme';
-import type { Project, ProjectStatus } from '@/types/project';
+import type { UiProject } from '@/types/project';
 
 import { DailyDigestCard } from './DailyDigestCard';
 import { ProjectCard } from './ProjectCard';
@@ -19,8 +19,9 @@ interface DailySummary {
 }
 
 interface HomeFeedProps {
-  projects: Project[];
+  projects: UiProject[];
   savedProjects: string[];
+  recentProjects: string[];          // ← novo: IDs dos projetos visitados recentemente
   dailySummary?: DailySummary | null;
   onProjectClick: (id: string) => void;
   onToggleSave: (id: string) => void;
@@ -32,6 +33,7 @@ interface HomeFeedProps {
 export function HomeFeed({
   projects,
   savedProjects,
+  recentProjects,
   dailySummary,
   onProjectClick,
   onToggleSave,
@@ -45,6 +47,15 @@ export function HomeFeed({
   const emTramitacao = stats?.em_tramitacao ?? 0;
   const aguardandoVotacao = stats?.aguardando_votacao ?? 0;
   const aprovados = stats?.aprovados ?? 0;
+
+  // Reidrata IDs recentes com os dados completos da mesma lista UiProject
+  const recentList = recentProjects
+    .map((id) => projects.find((p) => p.id === id))
+    .filter((p): p is UiProject => p !== undefined);
+
+  // Projetos gerais (exclui os que já aparecem em recentes para não duplicar)
+  const recentIds = new Set(recentProjects);
+  const generalList = projects.filter((p) => !recentIds.has(p.id));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -102,7 +113,7 @@ export function HomeFeed({
           </View>
         )}
 
-        {/* Cards de estatísticas — dados reais vindos do daily-summary */}
+        {/* KPIs — dados reais do daily-summary */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
           <View style={{ flex: 1, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.kpiGreenText, backgroundColor: colors.kpiGreenBg, padding: 16 }}>
             <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.kpiGreenText, marginBottom: 4 }}>
@@ -130,26 +141,39 @@ export function HomeFeed({
           </View>
         </View>
 
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>Atividade Recente</Text>
+        {/* ── ATIVIDADE RECENTE ───────────────────────────────────────────── */}
+        {recentList.length > 0 && (
+          <>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
+              Atividade Recente
+            </Text>
+            {recentList.map((project) => (
+              <ProjectCard
+                key={project.id}
+                {...project}
+                saved={savedProjects.includes(project.id)}
+                onClick={onProjectClick}
+                onSave={onToggleSave}
+              />
+            ))}
+          </>
+        )}
 
-        {projects.length === 0 && (
+        {/* ── EM DESTAQUE (lista geral) ───────────────────────────────────── */}
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
+          {recentList.length > 0 ? 'Em Destaque' : 'Atividade Recente'}
+        </Text>
+
+        {generalList.length === 0 && (
           <Text style={{ color: colors.textMuted, textAlign: 'center', marginTop: 24 }}>
             Carregando projetos...
           </Text>
         )}
 
-        {projects.map((project) => (
+        {generalList.map((project) => (
           <ProjectCard
             key={project.id}
-            id={project.id}
-            title={project.title}
-            year={project.year}
-            status={project.status as ProjectStatus}
-            trending={false}
-            category={project.category}
-            ementa={(project as any).ementa}
-            ods={(project as any).ods?.map((o: any) => typeof o === 'object' ? o.numero : o)}
-            temas={(project as any).temas}
+            {...project}
             saved={savedProjects.includes(project.id)}
             onClick={onProjectClick}
             onSave={onToggleSave}

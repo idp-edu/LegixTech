@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { HomeFeed } from '@/components/HomeFeed';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
+import { mapApiListToUiList } from '@/mappers/projectMapper';  // ← usa o mapper centralizado
 import { api } from '@/services/api';
 import type { UiProject } from '@/types/project';
 
@@ -22,6 +23,7 @@ export default function HomeTab() {
   const {
     isGuest,
     savedProjects,
+    recentProjects,          // ← adicionado
     toggleSaveProject,
     isDark,
     toggleTheme,
@@ -34,20 +36,9 @@ export default function HomeTab() {
 
   useEffect(() => {
     projectsService
-      .listar({ por_pagina: 20 })
+      .listar({ por_pagina: 100 })           // ← era 20, agora 100 (consistente com busca)
       .then((res) => {
-        const mapped: UiProject[] = (res.dados ?? []).map((p: any) => ({
-          id: String(p.external_id ?? p.id),
-          title: p.ementa ?? p.titulo ?? 'Sem título',
-          year: String(p.ano ?? new Date().getFullYear()),
-          status: mapSituacao(p.situacao),
-          category: p.tipo ?? 'Projeto',
-          summary: p.resumo ?? p.ementa ?? '',
-          sponsor: p.autor ?? '',
-          themes: p.temas ?? [],
-          ods: (p.ods ?? []).map((o: any) => (typeof o === 'object' ? o.numero : o)),
-        }));
-        setProjects(mapped);
+        setProjects(mapApiListToUiList(res.dados ?? []));  // ← mapper centralizado
       })
       .catch(() => showToastMsg('Erro ao carregar projetos.'));
 
@@ -61,6 +52,7 @@ export default function HomeTab() {
     <HomeFeed
       projects={projects}
       savedProjects={savedProjects}
+      recentProjects={recentProjects}        // ← adicionado
       dailySummary={dailySummary}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
@@ -75,13 +67,4 @@ export default function HomeTab() {
       onDigestClick={() => setShowDigestStories(true)}
     />
   );
-}
-
-function mapSituacao(situacao?: string): 'active' | 'pending' | 'archived' | 'approved' {
-  if (!situacao) return 'pending';
-  const s = situacao.toLowerCase();
-  if (s.includes('aprovad') || s.includes('sancion')) return 'approved';
-  if (s.includes('arquivad')) return 'archived';
-  if (s.includes('vota') || s.includes('pauta') || s.includes('tramit')) return 'pending';
-  return 'active';
 }

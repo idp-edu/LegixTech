@@ -5,18 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/useTheme';
 import type { Politician } from '@/data/mockPoliticians';
-import type { ProjectStatus } from '@/types/project';
+import type { UiProject } from '@/types/project';
 
 import { ProjectCard } from './ProjectCard';
 
 interface SavedProjectsProps {
-  projects: Array<{
-    id: string;
-    title: string;
-    year: string;
-    status: ProjectStatus;
-    category: string;
-  }>;
+  projects: UiProject[];           // ← era tipo inline mínimo, agora é UiProject completo
   politicians: Politician[];
   savedPoliticians: string[];
   onProjectClick: (id: string) => void;
@@ -101,6 +95,7 @@ export function SavedProjects({
               </Text>
             </View>
           ) : (
+            // Usa UiProject completo — título, summary, sponsor, ods chegam corretamente
             projects.map((project) => (
               <ProjectCard
                 key={project.id}
