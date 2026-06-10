@@ -9,7 +9,7 @@ type UseProjectResult = {
   error: string | null;
 };
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 export function useProject(id: string | undefined): UseProjectResult {
   const [project, setProject] = useState<UiProject | null>(null);
