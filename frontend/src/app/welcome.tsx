@@ -11,6 +11,7 @@ export default function WelcomeRoute() {
   const {
     loginWithGoogle,
     loginWithPassword,
+    registerWithPassword,
     continueAsGuest,
     isAuthenticated,
     isGuest,
@@ -24,8 +25,8 @@ export default function WelcomeRoute() {
   }, [isAuthenticated, isGuest, router]);
 
   const handleLogin = async (
-    type: 'google' | 'biometric' | 'guest' | 'password',
-    credentials?: { email: string; password: string },
+    type: 'google' | 'biometric' | 'guest' | 'password' | 'register',
+    credentials?: { email: string; password: string; name?: string },
   ) => {
     if (type === 'guest' || type === 'biometric') {
       continueAsGuest();
@@ -36,12 +37,26 @@ export default function WelcomeRoute() {
       setLoading(true);
       try {
         const response = await authService.loginWithPassword(credentials);
-        await loginWithPassword({
-          token: response.access_token,
-          user: response.user,
-        });
+        await loginWithPassword({ token: response.access_token, user: response.user });
       } catch (err: any) {
         Alert.alert('Erro ao entrar', err?.message ?? 'Verifique seu e-mail e senha.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (type === 'register' && credentials) {
+      setLoading(true);
+      try {
+        const response = await authService.registerWithPassword({
+          name: credentials.name ?? '',
+          email: credentials.email,
+          password: credentials.password,
+        });
+        await registerWithPassword({ token: response.access_token, user: response.user });
+      } catch (err: any) {
+        Alert.alert('Erro ao criar conta', err?.message ?? 'Verifique os dados e tente novamente.');
       } finally {
         setLoading(false);
       }

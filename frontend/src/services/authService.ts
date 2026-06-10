@@ -5,6 +5,7 @@ import type {
   AuthUser,
   LoginGooglePayload,
   LoginPasswordPayload,
+  RegisterPasswordPayload,
 } from '@/types/auth';
 
 async function persistAuth(response: AuthResponse) {
@@ -23,6 +24,12 @@ async function persistAuth(response: AuthResponse) {
 export const authService = {
   async loginWithPassword(payload: LoginPasswordPayload) {
     const response = await api.post<AuthResponse>('/auth/login', payload, undefined, false);
+    await persistAuth(response);
+    return response;
+  },
+
+  async registerWithPassword(payload: RegisterPasswordPayload) {
+    const response = await api.post<AuthResponse>('/auth/register', payload, undefined, false);
     await persistAuth(response);
     return response;
   },

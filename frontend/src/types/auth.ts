@@ -14,8 +14,14 @@ export interface LoginPasswordPayload {
   password: string;
 }
 
+export interface RegisterPasswordPayload {
+  name: string;
+  email: string;
+  password: string;
+}
+
 export interface LoginGooglePayload {
-  token: string;       // campo que o backend /auth/google espera
+  token: string;
   email?: string;
   name?: string;
   photoUrl?: string;

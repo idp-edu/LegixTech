@@ -37,6 +37,7 @@ interface AppContextValue {
   showToast: boolean;
   loginWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   loginWithGoogle: (payload: { token: string; user?: AuthUser }) => Promise<void>;
+  registerWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   continueAsGuest: () => void;
   logout: () => Promise<void>;
   setUser: (user: AuthUser | null) => Promise<void>;
@@ -170,6 +171,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [persistSession],
   );
 
+  const registerWithPassword = useCallback(
+    async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
+      await persistSession({
+        token: nextToken,
+        user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
+        mode: 'password',
+      });
+      setShowOnboarding(true);
+    },
+    [persistSession],
+  );
+
   const continueAsGuest = useCallback(() => {
     setAuthMode('guest');
     setTokenState(null);
@@ -252,6 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast,
     loginWithPassword,
     loginWithGoogle,
+    registerWithPassword,
     continueAsGuest,
     logout,
     setUser,
