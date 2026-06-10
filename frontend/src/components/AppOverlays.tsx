@@ -20,6 +20,8 @@ export function AppOverlays() {
     hideToast,
   } = useApp();
 
+  const isProjectContext = chatbotContext !== 'projeto de lei';
+
   return (
     <>
       <OnboardingOverlay
@@ -33,7 +35,12 @@ export function AppOverlays() {
         onViewProjects={() => setShowDigestStories(false)}
       />
       {!isGuest && (
-        <ChatbotDrawer isOpen={showChatbot} onClose={closeChatbot} context={chatbotContext} />
+        <ChatbotDrawer
+          isOpen={showChatbot}
+          onClose={closeChatbot}
+          context={chatbotContext}
+          projectTitle={isProjectContext ? chatbotContext : undefined}
+        />
       )}
       <Toast message={toastMessage} isVisible={showToast} onClose={hideToast} />
     </>

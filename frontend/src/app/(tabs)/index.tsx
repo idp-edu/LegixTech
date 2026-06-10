@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { HomeFeed } from '@/components/HomeFeed';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
-import { mapApiListToUiList } from '@/mappers/projectMapper';  // ← usa o mapper centralizado
+import { mapApiListToUiList } from '@/mappers/projectMapper';
 import { api } from '@/services/api';
 import type { UiProject } from '@/types/project';
 
@@ -23,7 +23,7 @@ export default function HomeTab() {
   const {
     isGuest,
     savedProjects,
-    recentProjects,          // ← adicionado
+    recentProjects,
     toggleSaveProject,
     isDark,
     toggleTheme,
@@ -36,9 +36,9 @@ export default function HomeTab() {
 
   useEffect(() => {
     projectsService
-      .listar({ por_pagina: 100 })           // ← era 20, agora 100 (consistente com busca)
+      .listar({ por_pagina: 100 })
       .then((res) => {
-        setProjects(mapApiListToUiList(res.dados ?? []));  // ← mapper centralizado
+        setProjects(mapApiListToUiList(res.dados ?? []));
       })
       .catch(() => showToastMsg('Erro ao carregar projetos.'));
 
@@ -48,11 +48,15 @@ export default function HomeTab() {
       .catch(() => {});
   }, []);
 
+  const handleKpiClick = (_filter: 'active' | 'pending' | 'approved') => {
+    router.push('/(tabs)/search' as never);
+  };
+
   return (
     <HomeFeed
       projects={projects}
       savedProjects={savedProjects}
-      recentProjects={recentProjects}        // ← adicionado
+      recentProjects={recentProjects}
       dailySummary={dailySummary}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
@@ -62,6 +66,7 @@ export default function HomeTab() {
         }
         toggleSaveProject(id);
       }}
+      onKpiClick={handleKpiClick}
       isDark={isDark}
       onToggleTheme={toggleTheme}
       onDigestClick={() => setShowDigestStories(true)}

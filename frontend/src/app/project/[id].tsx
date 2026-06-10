@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+
 import { ProjectDetail } from '@/components/ProjectDetail';
 import { useApp } from '@/context/AppContext';
-import { useProject } from '@/hooks/useProject';
+import { projectsService } from '@/services/projectsService';
+import { mapApiProjectToUiProject } from '@/mappers/projectMapper';
+import type { UiProject } from '@/types/project';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -11,22 +14,26 @@ export default function ProjectDetailScreen() {
   const { isGuest, openChatbot, showToastMsg, savedProjects, toggleSaveProject, addRecentProject } = useApp();
 
   const projectId = Array.isArray(id) ? id[0] : id;
-  const { project, loading, error } = useProject(projectId);
 
-  // Registra no histórico quando o projeto carrega
+  const [project, setProject] = useState<UiProject | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    projectsService
+      .detalhar(projectId)
+      .then((data) => setProject(mapApiProjectToUiProject(data)))
+      .catch(() => setError('Não foi possível carregar o projeto.'))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
   const hasRegistered = React.useRef(false);
-
   if (project && !hasRegistered.current) {
     hasRegistered.current = true;
     addRecentProject(project.id);
-  }
-
-  if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" />
-      </View>
-    );
   }
 
   if (!loading && (error || !project)) {
@@ -44,16 +51,17 @@ export default function ProjectDetailScreen() {
 
   return (
     <ProjectDetail
-      project={project!}
-      saved={savedProjects.includes(project!.id)}
-      onSave={() => toggleSaveProject(project!.id)}
+      project={project}
+      loading={loading}
+      saved={project ? savedProjects.includes(project.id) : false}
+      onSave={() => project && toggleSaveProject(project.id)}
       onBack={() => router.back()}
       onChatbotClick={() => {
         if (isGuest) {
           showToastMsg('Faça login para usar o assistente deste projeto.');
           return;
         }
-        openChatbot('projeto de lei');
+        openChatbot(project?.title ?? 'projeto de lei');
       }}
     />
   );

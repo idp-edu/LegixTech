@@ -1,5 +1,5 @@
-import { Send, ThumbsDown, ThumbsUp, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { RefreshCw, Send, ThumbsDown, ThumbsUp, X } from 'lucide-react-native';
+import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +18,7 @@ interface Message {
   id: string;
   text: string;
   sender: 'user' | 'assistant';
+  isError?: boolean;
   feedback?: 'helpful' | 'not-helpful';
 }
 
@@ -25,23 +26,39 @@ interface ChatbotDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   context?: string;
+  projectTitle?: string;
 }
 
-export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: ChatbotDrawerProps) {
+function buildWelcomeMessage(context: string, projectTitle?: string): string {
+  if (projectTitle) {
+    return `Olá! Posso te ajudar a entender o projeto "${projectTitle}". O que você gostaria de saber?`;
+  }
+  return `Olá! Posso te ajudar a entender esta ${context}. O que deseja saber?`;
+}
+
+export function ChatbotDrawer({
+  isOpen,
+  onClose,
+  context = 'projeto de lei',
+  projectTitle,
+}: ChatbotDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: `Olá! Posso te ajudar a entender esta ${context}. O que deseja saber?`,
+      text: buildWelcomeMessage(context, projectTitle),
       sender: 'assistant',
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const lastFailedText = useRef<string | null>(null);
 
   const quickActions = ['O que significa este status?', 'Quem pode ser afetado?', 'Como acompanhar?'];
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
+
+    lastFailedText.current = null;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -54,6 +71,7 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
     setIsLoading(true);
 
     try {
+      // context já carrega o título do projeto quando aberto via ProjectDetail
       const data = await chatService.sendMessage(text.trim(), context);
       setMessages((prev) => [
         ...prev,
@@ -64,17 +82,25 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
         },
       ]);
     } catch {
+      lastFailedText.current = text.trim();
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          text: 'Não consegui processar sua pergunta. Tente novamente.',
+          text: 'Não foi possível conectar ao assistente agora. Verifique sua conexão ou tente novamente.',
           sender: 'assistant',
+          isError: true,
         },
       ]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    if (!lastFailedText.current) return;
+    setMessages((prev) => prev.filter((m) => !m.isError));
+    handleSendMessage(lastFailedText.current);
   };
 
   const handleFeedback = (messageId: string, feedback: 'helpful' | 'not-helpful') => {
@@ -89,13 +115,24 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
         style={{ maxHeight: '70%' }}
       >
         <View className="rounded-t-3xl bg-card">
+          {/* Header */}
           <View className="flex-row items-center justify-between border-b border-border px-6 py-4">
-            <Text className="font-display text-base font-medium text-foreground">Assistente LegixTech</Text>
+            <View style={{ flex: 1 }}>
+              <Text className="font-display text-base font-medium text-foreground">
+                Assistente LegixTech
+              </Text>
+              {projectTitle && (
+                <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                  {projectTitle}
+                </Text>
+              )}
+            </View>
             <Pressable onPress={onClose} className="min-h-11 min-w-11 items-center justify-center">
               <X size={24} color="#1a1a1a" />
             </Pressable>
           </View>
 
+          {/* Mensagens */}
           <ScrollView className="max-h-64 px-6 py-4" contentContainerStyle={{ gap: 16 }}>
             {messages.map((message) => (
               <View
@@ -106,24 +143,46 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
                   <View
                     className="rounded-2xl px-4 py-3"
                     style={{
-                      backgroundColor: message.sender === 'user' ? '#1e40af' : '#f9fafb',
+                      backgroundColor: message.sender === 'user'
+                        ? '#1e40af'
+                        : message.isError
+                          ? '#fee2e2'
+                          : '#f9fafb',
                     }}
                   >
                     <Text
                       className="leading-relaxed"
-                      style={{ color: message.sender === 'user' ? '#fff' : '#1a1a1a' }}
+                      style={{
+                        color: message.sender === 'user'
+                          ? '#fff'
+                          : message.isError
+                            ? '#b91c1c'
+                            : '#1a1a1a',
+                      }}
                     >
                       {message.text}
                     </Text>
                   </View>
-                  {message.sender === 'assistant' && (
+
+                  {message.isError && lastFailedText.current && (
+                    <Pressable
+                      onPress={handleRetry}
+                      className="flex-row items-center gap-2 rounded-lg px-3 py-2"
+                      style={{ backgroundColor: '#fee2e2' }}
+                    >
+                      <RefreshCw size={14} color="#b91c1c" />
+                      <Text style={{ fontSize: 12, color: '#b91c1c', fontWeight: '500' }}>
+                        Tentar novamente
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  {message.sender === 'assistant' && !message.isError && (
                     <View className="flex-row gap-2 px-2">
                       <Pressable
                         onPress={() => handleFeedback(message.id, 'helpful')}
                         className="flex-row items-center gap-1 rounded-lg px-3 py-2"
-                        style={{
-                          backgroundColor: message.feedback === 'helpful' ? '#dcfce7' : 'transparent',
-                        }}
+                        style={{ backgroundColor: message.feedback === 'helpful' ? '#dcfce7' : 'transparent' }}
                       >
                         <ThumbsUp size={16} color={message.feedback === 'helpful' ? '#15803d' : '#6b7280'} />
                         <Text className="text-xs text-muted-foreground">Útil</Text>
@@ -131,9 +190,7 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
                       <Pressable
                         onPress={() => handleFeedback(message.id, 'not-helpful')}
                         className="flex-row items-center gap-1 rounded-lg px-3 py-2"
-                        style={{
-                          backgroundColor: message.feedback === 'not-helpful' ? '#fee2e2' : 'transparent',
-                        }}
+                        style={{ backgroundColor: message.feedback === 'not-helpful' ? '#fee2e2' : 'transparent' }}
                       >
                         <ThumbsDown size={16} color={message.feedback === 'not-helpful' ? '#ef4444' : '#6b7280'} />
                         <Text className="text-xs text-muted-foreground">Não foi útil</Text>
@@ -153,6 +210,7 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
             )}
           </ScrollView>
 
+          {/* Quick actions */}
           <View className="border-t border-border px-6 py-3">
             <View className="flex-row flex-wrap gap-2">
               {quickActions.map((action, index) => (
@@ -169,6 +227,7 @@ export function ChatbotDrawer({ isOpen, onClose, context = 'projeto de lei' }: C
             </View>
           </View>
 
+          {/* Input */}
           <View className="border-t border-border px-6 py-4">
             <View className="flex-row items-center gap-3 rounded-xl border border-border bg-input-background px-4 py-2">
               <TextInput
