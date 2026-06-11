@@ -8,8 +8,10 @@ import { SavedProjects } from '@/components/SavedProjects';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { projectsService } from '@/services/projectsService';
+import { politiciansService } from '@/services/politiciansService';
 import { mapApiListToUiList } from '@/mappers/projectMapper';
 import type { UiProject } from '@/types/project';
+import type { Politician } from '@/data/mockPoliticians';
 
 export default function SavedTab() {
   const router = useRouter();
@@ -25,7 +27,9 @@ export default function SavedTab() {
   } = useApp();
 
   const [projects, setProjects] = useState<UiProject[]>([]);
+  const [politicians, setPoliticians] = useState<Politician[]>([]);
 
+  // Busca projetos salvos
   useEffect(() => {
     if (!isAuthenticated || savedProjects.length === 0) {
       setProjects([]);
@@ -39,6 +43,37 @@ export default function SavedTab() {
       })
       .catch(() => setProjects([]));
   }, [isAuthenticated, savedProjects]);
+
+  // Busca parlamentares seguidos
+  useEffect(() => {
+    if (!isAuthenticated || savedPoliticians.length === 0) {
+      setPoliticians([]);
+      return;
+    }
+    politiciansService
+      .getSeguindo()
+      .then((lista: any[]) => {
+        const mapped: Politician[] = lista.map((p) => ({
+          id: String(p.politician_id),
+          name: p.politician_name ?? 'Parlamentar',
+          party: p.politician_party ?? '',
+          state: p.politician_state ?? '',
+          house: 'Câmara' as const,
+          photo: p.politician_photo_url ?? undefined,
+          bio: '',
+          stats: {
+            totalVotes: 0,
+            votesInFavor: 0,
+            votesAgainst: 0,
+            abstentions: 0,
+            projectsPresented: 0,
+            attendance: 0,
+          },
+        }));
+        setPoliticians(mapped);
+      })
+      .catch(() => setPoliticians([]));
+  }, [isAuthenticated, savedPoliticians]);
 
   // ── Não logado ────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
@@ -92,7 +127,7 @@ export default function SavedTab() {
   return (
     <SavedProjects
       projects={projects}
-      politicians={[]}
+      politicians={politicians}
       savedPoliticians={savedPoliticians}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
