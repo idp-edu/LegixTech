@@ -1,71 +1,176 @@
-import { useLocalSearchParams, useRouter } from 'expo-router'; 
-import { useEffect, useState } from 'react'; 
-import { PoliticianProfile } from '@/components/PoliticianProfile'; 
-import { useApp } from '@/context/AppContext'; 
-import { mockPoliticians, mockVotes } from '@/data/mockPoliticians'; 
-import { politiciansService } from '@/services/politiciansService'; 
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 
-export default function PoliticianDetailScreen() { 
-  const { id } = useLocalSearchParams<{ id: string }>(); 
-  const router = useRouter(); 
-  const { isAuthenticated, openChatbot, showToastMsg } = useApp(); 
-  const [isSaved, setIsSaved] = useState(false); 
+import { PoliticianProfile } from '@/components/PoliticianProfile';
+import { useApp } from '@/context/AppContext';
+import { politiciansService } from '@/services/politiciansService';
+import type { Politician, Vote } from '@/data/mockPoliticians';
 
-  const politician = mockPoliticians.find((p) => p.id === id); 
+export default function PoliticianDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { isAuthenticated, openChatbot, showToastMsg } = useApp();
 
-  useEffect(() => { 
-    if (!isAuthenticated || !politician) return; 
+  const [politician, setPolitician] = useState<Politician | null>(null);
+  const [votes, setVotes] = useState<Vote[]>([]);
+  const [isSaved, setIsSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carrega dados do backend
+  useEffect(() => {
+    if (!id) return;
+
+    setLoading(true);
+    setError(null);
 
     politiciansService
-      .getSeguindo() 
-      .then((lista: any[]) => { 
-        setIsSaved(lista.some((p: any) => String(p.politician_id) === String(politician.id))); 
-      }) 
-      .catch(() => {}); 
-  }, [isAuthenticated, politician]); 
+      .detalhe(String(id))
+      .then((data: any) => {
+        // Mapeia a resposta da API para o shape que o PoliticianProfile espera
+        const mapped: Politician = {
+          id: String(data.id ?? data.external_id ?? id),
+          name: data.nome ?? data.name ?? 'Parlamentar',
+          party: data.siglaPartido ?? data.party ?? '',
+          state: data.siglaUf ?? data.state ?? '',
+          house:
+            data.tipoCargo === 'Senador' || data.house === 'Senado'
+              ? 'Senado'
+              : 'Câmara',
+          photo: data.urlFoto ?? data.photo ?? undefined,
+          bio: data.ultimoStatus?.descricaoStatus ?? data.bio ?? '',
+          stats: {
+            totalVotes: data.stats?.totalVotes ?? 0,
+            votesInFavor: data.stats?.votesInFavor ?? 0,
+            votesAgainst: data.stats?.votesAgainst ?? 0,
+            abstentions: data.stats?.abstentions ?? 0,
+            projectsPresented: data.stats?.projectsPresented ?? 0,
+            attendance: data.stats?.attendance ?? 0,
+          },
+        };
+        setPolitician(mapped);
+      })
+      .catch(() => {
+        setError('Não foi possível carregar os dados do parlamentar.');
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
 
-  if (!politician) { 
-    router.back(); 
-    return null; 
-  } 
+  // Carrega votações do parlamentar
+  useEffect(() => {
+    if (!id) return;
 
-  const votes = mockVotes.filter((v) => v.politicianId === id); 
+    politiciansService
+      .votacoes(String(id))
+      .then((data: any) => {
+        const lista = Array.isArray(data) ? data : data?.dados ?? [];
+        const mapped: Vote[] = lista.map((v: any, idx: number) => ({
+          id: String(v.id ?? idx),
+          politicianId: String(id),
+          projectId: String(v.idProposicao ?? v.projectId ?? idx),
+          projectTitle: v.proposicao?.ementa ?? v.projectTitle ?? 'Votação',
+          projectDescription:
+            v.proposicao?.descricaoTipo ?? v.projectDescription ?? '',
+          vote:
+            v.voto === 'Sim' || v.voto === 'favor'
+              ? 'favor'
+              : v.voto === 'Não' || v.voto === 'contra'
+              ? 'contra'
+              : 'abstencao',
+          status: 'active',
+          date: v.dataHoraVoto
+            ? new Date(v.dataHoraVoto).toLocaleDateString('pt-BR')
+            : v.date ?? '',
+          category: v.proposicao?.tema ?? v.category ?? '',
+        }));
+        setVotes(mapped);
+      })
+      .catch(() => {
+        // Não bloqueia a tela se votações falharem
+        setVotes([]);
+      });
+  }, [id]);
 
-  const handleToggleSave = async (politicianLocalId: string) => { 
-    if (!isAuthenticated) { 
-      showToastMsg('Faça login para seguir parlamentares'); 
-      return; 
-    } 
-    try { 
-      const lista: any[] = await politiciansService.getSeguindo(); 
-      
-      if (isSaved) { 
-        const entrada = lista.find((p: any) => String(p.politician_id) === String(politicianLocalId)); 
-        // 🚀 CORRIGIDO: Convertendo o ID para número com Number() no deixarDeSeguir
-        if (entrada) await politiciansService.deixarDeSeguir(Number(entrada.politician_id)); 
-        setIsSaved(false); 
-        showToastMsg('Deixou de seguir parlamentar'); 
-      } else { 
-        // 🚀 CORRIGIDO: Convertendo o parâmetro 'politicianLocalId' de string para número usando Number()
-        await politiciansService.seguir(Number(politicianLocalId)); 
-        setIsSaved(true); 
-        showToastMsg('Seguindo parlamentar!'); 
-      } 
-    } catch { 
-      showToastMsg('Erro ao atualizar. Tente novamente.'); 
-    } 
-  }; 
+  // Verifica se já está seguindo
+  useEffect(() => {
+    if (!isAuthenticated || !id) return;
 
-  return ( 
-    <PoliticianProfile 
-      politician={politician} 
-      votes={votes} 
-      onBack={() => router.back()} 
-      onProjectClick={(projectId) => router.push(`/project/${projectId}` as never)} 
-      onChatbotClick={isAuthenticated ? () => openChatbot('parlamentar') : undefined} 
-      isSaved={isSaved} 
-      onToggleSave={handleToggleSave} 
-      onShowToast={showToastMsg} 
-    /> 
-  ); 
+    politiciansService
+      .getSeguindo()
+      .then((lista: any[]) => {
+        setIsSaved(lista.some((p) => String(p.politician_id) === String(id)));
+      })
+      .catch(() => {});
+  }, [isAuthenticated, id]);
+
+  // Estado de loading
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color="#1e40af" />
+        <Text className="mt-3 text-sm text-muted-foreground">
+          Carregando parlamentar...
+        </Text>
+      </View>
+    );
+  }
+
+  // Estado de erro
+  if (error || !politician) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background px-8">
+        <Text className="mb-2 text-center text-base font-semibold text-foreground">
+          {error ?? 'Parlamentar não encontrado'}
+        </Text>
+        <Text
+          onPress={() => router.back()}
+          className="mt-4 text-sm text-primary underline"
+        >
+          Voltar
+        </Text>
+      </View>
+    );
+  }
+
+  const handleToggleSave = async (politicianLocalId: string) => {
+    if (!isAuthenticated) {
+      showToastMsg('Faça login para seguir parlamentares');
+      return;
+    }
+    try {
+      const lista: any[] = await politiciansService.getSeguindo();
+
+      if (isSaved) {
+        const entrada = lista.find(
+          (p: any) => String(p.politician_id) === String(politicianLocalId),
+        );
+        if (entrada)
+          await politiciansService.deixarDeSeguir(Number(entrada.politician_id));
+        setIsSaved(false);
+        showToastMsg('Deixou de seguir parlamentar');
+      } else {
+        await politiciansService.seguir(Number(politicianLocalId));
+        setIsSaved(true);
+        showToastMsg('Seguindo parlamentar!');
+      }
+    } catch {
+      showToastMsg('Erro ao atualizar. Tente novamente.');
+    }
+  };
+
+  return (
+    <PoliticianProfile
+      politician={politician}
+      votes={votes}
+      onBack={() => router.back()}
+      onProjectClick={(projectId) =>
+        router.push(`/project/${projectId}` as never)
+      }
+      onChatbotClick={isAuthenticated ? () => openChatbot('parlamentar') : undefined}
+      isSaved={isSaved}
+      onToggleSave={handleToggleSave}
+      onShowToast={showToastMsg}
+    />
+  );
 }
