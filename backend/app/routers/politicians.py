@@ -17,14 +17,67 @@ router = APIRouter(prefix="/politicos", tags=["Políticos"])
 CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2"
 SENADO_API = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual"
 
+# Threshold: só usa cache do banco se tiver >= 500 deputados populados
+_CACHE_MIN_DEPUTADOS = 500
+
 
 def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
+    """Para deputados (IDs numéricos) busca/cria no banco.
+    Para senadores (prefixo sen_) busca direto na API do Senado."""
+
     politico = db.query(Politician).filter(Politician.external_id == external_id).first()
     if politico:
         return politico
+
+    # ── Senador ──────────────────────────────────────────────────────────────
+    if external_id.startswith("sen_"):
+        codigo = external_id.replace("sen_", "")
+        try:
+            resp = httpx.get(
+                f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
+                headers={"Accept": "application/json"},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=404, detail="Senador não encontrado")
+
+            dados = resp.json()
+            detalhe = (
+                dados.get("DetalheParlamentar", {})
+                .get("Parlamentar", {})
+                .get("IdentificacaoParlamentar", {})
+            )
+            mandato = (
+                dados.get("DetalheParlamentar", {})
+                .get("Parlamentar", {})
+                .get("MandatoAtual", {})
+            )
+
+            politico = Politician(
+                external_id=external_id,
+                name=detalhe.get("NomeParlamentar", ""),
+                party=detalhe.get("SiglaPartidoParlamentar", ""),
+                state=mandato.get("UfParlamentar", "") or detalhe.get("UfParlamentar", ""),
+                house="Senado",
+                photo_url=detalhe.get("UrlFotoParlamentar", ""),
+                bio=None,
+                email=detalhe.get("EmailParlamentar", ""),
+            )
+            db.add(politico)
+            db.commit()
+            db.refresh(politico)
+            return politico
+
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=404, detail="Senador não encontrado")
+
+    # ── Deputado ─────────────────────────────────────────────────────────────
     resp = httpx.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
+
     dados = resp.json().get("dados", {})
     politico = Politician(
         external_id=str(dados.get("id")),
@@ -100,22 +153,27 @@ def listar_politicos(
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Politician)
-    if nome:
-        query = query.filter(Politician.name.ilike(f"%{nome}%"))
-    if partido:
-        query = query.filter(Politician.party.ilike(f"%{partido}%"))
-    if estado:
-        query = query.filter(Politician.state == estado.upper())
+    # ── Tenta usar cache do banco apenas se tiver volume suficiente ──────────
+    cache_query = db.query(Politician)
     if casa:
-        query = query.filter(Politician.house == casa)
+        cache_query = cache_query.filter(Politician.house == casa)
 
-    total_local = query.count()
+    total_cache = cache_query.count()
+    usar_cache = total_cache >= _CACHE_MIN_DEPUTADOS
 
-    if total_local > 0:
-        politicos = query.offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    if usar_cache:
+        q = cache_query
+        if nome:
+            q = q.filter(Politician.name.ilike(f"%{nome}%"))
+        if partido:
+            q = q.filter(Politician.party.ilike(f"%{partido}%"))
+        if estado:
+            q = q.filter(Politician.state == estado.upper())
+
+        total_filtrado = q.count()
+        politicos = q.offset((pagina - 1) * por_pagina).limit(por_pagina).all()
         return {
-            "total": total_local,
+            "total": total_filtrado,
             "pagina": pagina,
             "por_pagina": por_pagina,
             "fonte": "cache",
@@ -133,7 +191,7 @@ def listar_politicos(
             ],
         }
 
-    # Senado: busca na API do Senado
+    # ── Senado: busca direto na API do Senado ────────────────────────────────
     if casa == "Senado":
         senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
         inicio = (pagina - 1) * por_pagina
@@ -145,7 +203,7 @@ def listar_politicos(
             "resultados": senadores[inicio: inicio + por_pagina],
         }
 
-    # Câmara ou Todos: busca na API da Câmara
+    # ── Câmara: busca na API da Câmara ───────────────────────────────────────
     params = {"pagina": pagina, "itens": por_pagina, "ordem": "ASC", "ordenarPor": "nome"}
     if nome:
         params["nome"] = nome
@@ -171,11 +229,11 @@ def listar_politicos(
         for d in dados_camara
     ]
 
-    # Se pediu "Todos", combina Câmara + Senado
+    # ── Todos: combina Câmara + Senado ───────────────────────────────────────
     if not casa or casa.lower() == "todos":
         senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
-        inicio = (pagina - 1) * por_pagina
         todos = resultados_camara + senadores
+        inicio = (pagina - 1) * por_pagina
         return {
             "total": len(todos),
             "pagina": pagina,
@@ -193,7 +251,7 @@ def listar_politicos(
     }
 
 
-# ── Favoritar — /salvos/meus DEVE vir ANTES de /{external_id} ──────────────
+# ── /salvos/meus DEVE vir ANTES de /{external_id} ───────────────────────────
 
 @router.get("/salvos/meus")
 def meus_politicos_salvos(
@@ -252,6 +310,10 @@ def projetos_do_politico(
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
 ):
+    # Senadores não têm proposições na API da Câmara
+    if external_id.startswith("sen_"):
+        return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": 0, "projetos": []}
+
     params = {
         "idDeputadoAutor": external_id,
         "pagina": pagina,
@@ -277,6 +339,10 @@ def votacoes_do_politico(
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    # Senadores não têm votações na API da Câmara
+    if external_id.startswith("sen_"):
+        return {"external_id": external_id, "fonte": "n/a", "total": 0, "votacoes": []}
+
     politico = db.query(Politician).filter(Politician.external_id == external_id).first()
 
     if politico:
