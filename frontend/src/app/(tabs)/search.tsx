@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 
 import { SearchScreen } from '@/components/SearchScreen';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
 import { useApp } from '@/context/AppContext';
 import { politiciansService } from '@/services/politiciansService';
 import type { Politician } from '@/data/mockPoliticians';
+import type { ApiPolitician } from '@/types/politician';
 
-function mapearPolitico(p: any): Politician {
+function mapParaPolitician(p: ApiPolitician): Politician {
   return {
-    id: p.external_id ?? String(p.id),
+    id: p.external_id ?? String(p.id ?? ''),
     name: p.nome ?? '',
     party: p.partido ?? '',
     state: p.estado ?? '',
@@ -30,15 +33,13 @@ async function buscarTodos(casa: 'Câmara' | 'Senado'): Promise<Politician[]> {
   const todos: Politician[] = [];
   let pagina = 1;
   const porPagina = 100;
-
   while (true) {
     const res = await politiciansService.listar({ casa, pagina, por_pagina: porPagina });
     const resultados = res.resultados ?? [];
-    todos.push(...resultados.map(mapearPolitico));
+    todos.push(...resultados.map(mapParaPolitician));
     if (resultados.length < porPagina) break;
     pagina += 1;
   }
-
   return todos;
 }
 
@@ -54,21 +55,29 @@ export default function SearchTab() {
   } = useApp();
 
   const [politicians, setPoliticians] = useState<Politician[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function carregar() {
-      try {
-        const [deputados, senadores] = await Promise.all([
-          buscarTodos('Câmara'),
-          buscarTodos('Senado'),
-        ]);
-        setPoliticians([...deputados, ...senadores]);
-      } catch {
-        showToastMsg('Erro ao carregar parlamentares.');
-      }
+  const carregar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [deputados, senadores] = await Promise.all([
+        buscarTodos('Câmara'),
+        buscarTodos('Senado'),
+      ]);
+      setPoliticians([...deputados, ...senadores]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar parlamentares.');
+    } finally {
+      setLoading(false);
     }
-    carregar();
-  }, []);
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  if (loading) return <LoadingState message="Carregando parlamentares..." />;
+  if (error) return <ErrorState message={error} onRetry={carregar} />;
 
   return (
     <SearchScreen

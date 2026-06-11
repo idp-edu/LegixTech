@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 
 import { SavedProjects } from '@/components/SavedProjects';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorState } from '@/components/ErrorState';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
 import { politiciansService } from '@/services/politiciansService';
+import { mapApiListToUiList } from '@/mappers/projectMapper';
+import type { UiProject } from '@/types/project';
 import type { Politician } from '@/data/mockPoliticians';
-import type { ProjectStatus } from '@/types/project';
 
 export default function SavedTab() {
   const router = useRouter();
@@ -19,58 +22,55 @@ export default function SavedTab() {
     showToastMsg,
   } = useApp();
 
-  const [allProjects, setAllProjects] = useState<
-    Array<{ id: string; title: string; year: string; status: ProjectStatus; category: string }>
-  >([]);
+  const [allProjects, setAllProjects] = useState<UiProject[]>([]);
   const [politicians, setPoliticians] = useState<Politician[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    projectsService
-      .listar({ por_pagina: 100 })
-      .then((res) =>
-        setAllProjects(
-          (res.dados ?? []).map((p: any) => ({
-            id: String(p.external_id ?? p.id),
-            title: p.ementa ?? p.titulo ?? 'Sem título',
-            year: String(p.ano ?? ''),
-            status: 'pending' as ProjectStatus,
-            category: p.tipo ?? 'Projeto',
-          })),
-        ),
-      )
-      .catch(() => showToastMsg('Erro ao carregar projetos salvos.'));
+  const carregar = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [res, lista] = await Promise.all([
+        projectsService.listar({ por_pagina: 100 }),
+        politiciansService.getSeguindo(),
+      ]);
 
-    politiciansService
-      .getSeguindo()
-      .then((lista) =>
-        setPoliticians(
-          lista.map((p) => ({
-            id: String(p.politician_id),
-            name: p.politician_name ?? 'Parlamentar',
-            party: p.politician_party ?? '',
-            state: p.politician_state ?? '',
-            house: 'Câmara' as 'Senado' | 'Câmara',
-            photo: p.politician_photo_url ?? undefined,
-            bio: '',
-            stats: {
-              totalVotes: 0,
-              votesInFavor: 0,
-              votesAgainst: 0,
-              abstentions: 0,
-              projectsPresented: 0,
-              attendance: 0,
-            },
-          })),
-        ),
-      )
-      .catch(() => {});
-  }, []);
+      setAllProjects(mapApiListToUiList(res.dados ?? []));
+
+      setPoliticians(
+        lista.map((p) => ({
+          id: String(p.politician_id),
+          name: p.politician_name ?? 'Parlamentar',
+          party: p.politician_party ?? '',
+          state: p.politician_state ?? '',
+          house: 'Câmara' as const,
+          photo: p.politician_photo_url ?? undefined,
+          bio: '',
+          stats: {
+            totalVotes: 0,
+            votesInFavor: 0,
+            votesAgainst: 0,
+            abstentions: 0,
+            projectsPresented: 0,
+            attendance: 0,
+          },
+        })),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar salvos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  if (loading) return <LoadingState message="Carregando salvos..." />;
+  if (error) return <ErrorState message={error} onRetry={carregar} />;
 
   const projects = allProjects.filter((p) => savedProjects.includes(p.id));
-
-  const requireLogin = () => {
-    showToastMsg('Faça login para acessar e gerenciar seus itens salvos.');
-  };
+  const requireLogin = () => showToastMsg('Faça login para acessar e gerenciar seus itens salvos.');
 
   return (
     <SavedProjects

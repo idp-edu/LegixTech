@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 
 import { HomeFeed } from '@/components/HomeFeed';
+import { LoadingState } from '@/components/LoadingState';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
 import { mapApiListToUiList } from '@/mappers/projectMapper';
@@ -33,24 +34,23 @@ export default function HomeTab() {
 
   const [projects, setProjects] = useState<UiProject[]>([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    projectsService
-      .listar({ por_pagina: 100 })
-      .then((res) => {
+    setLoading(true);
+    Promise.all([
+      projectsService.listar({ por_pagina: 100 }),
+      api.get<DailySummary>('/daily-summary/').catch(() => null),
+    ])
+      .then(([res, summary]) => {
         setProjects(mapApiListToUiList(res.dados ?? []));
+        if (summary) setDailySummary(summary);
       })
-      .catch(() => showToastMsg('Erro ao carregar projetos.'));
-
-    api
-      .get<DailySummary>('/daily-summary/')
-      .then(setDailySummary)
-      .catch(() => {});
+      .catch(() => showToastMsg('Erro ao carregar projetos.'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleKpiClick = (_filter: 'active' | 'pending' | 'approved') => {
-    router.push('/(tabs)/search' as never);
-  };
+  if (loading) return <LoadingState message="Carregando projetos..." />;
 
   return (
     <HomeFeed
@@ -60,13 +60,10 @@ export default function HomeTab() {
       dailySummary={dailySummary}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
-        if (isGuest) {
-          showToastMsg('Faça login para salvar projetos.');
-          return;
-        }
+        if (isGuest) { showToastMsg('Faça login para salvar projetos.'); return; }
         toggleSaveProject(id);
       }}
-      onKpiClick={handleKpiClick}
+      onKpiClick={() => router.push('/(tabs)/search' as never)}
       isDark={isDark}
       onToggleTheme={toggleTheme}
       onDigestClick={() => setShowDigestStories(true)}
