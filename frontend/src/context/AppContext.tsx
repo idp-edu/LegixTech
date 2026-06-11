@@ -20,6 +20,8 @@ import {
   saveSavedProjects,
   getRecentProjects,
   saveRecentProjects,
+  getSavedPoliticians,
+  saveSavedPoliticians,
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
@@ -97,21 +99,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
       return response.ok;
     } catch {
-      // Backend offline — mantém sessão para não deslogar sem motivo
       return true;
     }
   };
 
   useEffect(() => {
     const hydrate = async () => {
-      const [storedToken, storedUser, storedSaved, storedRecent] = await Promise.all([
+      const [storedToken, storedUser, storedSaved, storedRecent, storedPoliticians] = await Promise.all([
         getToken(),
         getUser<AuthUser>(),
         getSavedProjects(),
         getRecentProjects(),
+        getSavedPoliticians(),
       ]);
+
       setSavedProjects(storedSaved);
       setRecentProjects(storedRecent);
+      setSavedPoliticians(storedPoliticians);
 
       if (storedToken && storedUser) {
         const isValid = await validateToken(storedToken);
@@ -120,7 +124,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUserState(storedUser);
           setAuthMode(storedUser.provider ?? 'password');
         } else {
-          // Token expirado → limpa tudo e vai para login
           await clearAuthStorage();
           setTokenState(null);
           setUserState(null);
@@ -139,7 +142,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     hydrate();
   }, []);
 
-  // Registra handler global de 401 para logout automático
   useEffect(() => {
     registerUnauthorizedHandler(() => {
       setAuthMode(null);
@@ -211,8 +213,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setShowOnboarding(false);
     setShowChatbot(false);
     setSavedProjects([]);
+    setSavedPoliticians([]);
     setRecentProjects([]);
-    await Promise.all([clearAuthStorage(), saveSavedProjects([]), saveRecentProjects([])]);
+    await Promise.all([
+      clearAuthStorage(),
+      saveSavedProjects([]),
+      saveRecentProjects([]),
+      saveSavedPoliticians([]),
+    ]);
   }, []);
 
   const setToken = useCallback(async (nextToken: string | null) => {
@@ -253,11 +261,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleSavePolitician = useCallback((id: string) => {
-    setSavedPoliticians((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+    setSavedPoliticians((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      saveSavedPoliticians(next);
+      return next;
+    });
   }, []);
 
   const removePolitician = useCallback((id: string) => {
-    setSavedPoliticians((prev) => prev.filter((p) => p !== id));
+    setSavedPoliticians((prev) => {
+      const next = prev.filter((p) => p !== id);
+      saveSavedPoliticians(next);
+      return next;
+    });
   }, []);
 
   const openChatbot = useCallback((context = 'projeto de lei') => {
