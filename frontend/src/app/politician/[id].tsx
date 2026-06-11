@@ -10,7 +10,7 @@ import type { Politician, Vote } from '@/data/mockPoliticians';
 export default function PoliticianDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { isAuthenticated, openChatbot, showToastMsg } = useApp();
+  const { isAuthenticated, openChatbot, showToastMsg, toggleSavePolitician } = useApp();
 
   const [politician, setPolitician] = useState<Politician | null>(null);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -18,17 +18,14 @@ export default function PoliticianDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carrega dados do backend
   useEffect(() => {
     if (!id) return;
-
     setLoading(true);
     setError(null);
 
     politiciansService
       .detalhe(String(id))
       .then((data: any) => {
-        // Mapeia a resposta da API para o shape que o PoliticianProfile espera
         const mapped: Politician = {
           id: String(data.id ?? data.external_id ?? id),
           name: data.nome ?? data.name ?? 'Parlamentar',
@@ -51,16 +48,12 @@ export default function PoliticianDetailScreen() {
         };
         setPolitician(mapped);
       })
-      .catch(() => {
-        setError('Não foi possível carregar os dados do parlamentar.');
-      })
+      .catch(() => setError('Não foi possível carregar os dados do parlamentar.'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Carrega votações do parlamentar
   useEffect(() => {
     if (!id) return;
-
     politiciansService
       .votacoes(String(id))
       .then((data: any) => {
@@ -70,8 +63,7 @@ export default function PoliticianDetailScreen() {
           politicianId: String(id),
           projectId: String(v.idProposicao ?? v.projectId ?? idx),
           projectTitle: v.proposicao?.ementa ?? v.projectTitle ?? 'Votação',
-          projectDescription:
-            v.proposicao?.descricaoTipo ?? v.projectDescription ?? '',
+          projectDescription: v.proposicao?.descricaoTipo ?? v.projectDescription ?? '',
           vote:
             v.voto === 'Sim' || v.voto === 'favor'
               ? 'favor'
@@ -86,25 +78,26 @@ export default function PoliticianDetailScreen() {
         }));
         setVotes(mapped);
       })
-      .catch(() => {
-        // Não bloqueia a tela se votações falharem
-        setVotes([]);
-      });
+      .catch(() => setVotes([]));
   }, [id]);
 
-  // Verifica se já está seguindo
   useEffect(() => {
     if (!isAuthenticated || !id) return;
-
     politiciansService
       .getSeguindo()
       .then((lista: any[]) => {
-        setIsSaved(lista.some((p) => String(p.politician_id) === String(id)));
+        // Cruza pelo external_id que agora vem no retorno
+        setIsSaved(
+          lista.some(
+            (p) =>
+              String(p.politician_external_id) === String(id) ||
+              String(p.politician_id) === String(id),
+          ),
+        );
       })
       .catch(() => {});
   }, [isAuthenticated, id]);
 
-  // Estado de loading
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
@@ -116,17 +109,13 @@ export default function PoliticianDetailScreen() {
     );
   }
 
-  // Estado de erro
   if (error || !politician) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-8">
         <Text className="mb-2 text-center text-base font-semibold text-foreground">
           {error ?? 'Parlamentar não encontrado'}
         </Text>
-        <Text
-          onPress={() => router.back()}
-          className="mt-4 text-sm text-primary underline"
-        >
+        <Text onPress={() => router.back()} className="mt-4 text-sm text-primary underline">
           Voltar
         </Text>
       </View>
@@ -139,19 +128,15 @@ export default function PoliticianDetailScreen() {
       return;
     }
     try {
-      const lista: any[] = await politiciansService.getSeguindo();
-
       if (isSaved) {
-        const entrada = lista.find(
-          (p: any) => String(p.politician_id) === String(politicianLocalId),
-        );
-        if (entrada)
-          await politiciansService.deixarDeSeguir(Number(entrada.politician_id));
+        await politiciansService.deixarDeSeguir(politicianLocalId); // ← era Number(), agora string
         setIsSaved(false);
+        toggleSavePolitician(politicianLocalId);
         showToastMsg('Deixou de seguir parlamentar');
       } else {
-        await politiciansService.seguir(Number(politicianLocalId));
+        await politiciansService.seguir(politicianLocalId);         // ← era Number(), agora string
         setIsSaved(true);
+        toggleSavePolitician(politicianLocalId);
         showToastMsg('Seguindo parlamentar!');
       }
     } catch {
@@ -164,9 +149,7 @@ export default function PoliticianDetailScreen() {
       politician={politician}
       votes={votes}
       onBack={() => router.back()}
-      onProjectClick={(projectId) =>
-        router.push(`/project/${projectId}` as never)
-      }
+      onProjectClick={(projectId) => router.push(`/project/${projectId}` as never)}
       onChatbotClick={isAuthenticated ? () => openChatbot('parlamentar') : undefined}
       isSaved={isSaved}
       onToggleSave={handleToggleSave}

@@ -10,6 +10,7 @@ export interface FollowedPolitician {
   politician_party: string | null;
   politician_state: string | null;
   politician_photo_url: string | null;
+  politician_external_id: string | null;
 }
 
 type ListarPoliticosParams = {
@@ -39,7 +40,7 @@ export const politiciansService = {
   },
 
   detalhe: (externalId: string) => {
-    return api.get<unknown>(`/politicos/${externalId}/`); // trailing slash
+    return api.get<unknown>(`/politicos/${externalId}/`);
   },
 
   projetos: (externalId: string) => {
@@ -54,11 +55,11 @@ export const politiciansService = {
     return api.get<FollowedPolitician[]>('/seguindo/');
   },
 
-  seguir: (politicianId: number) => {
-    return api.post<FollowedPolitician>(`/seguindo/${politicianId}`);
+  seguir: (externalId: string) => {   // ← era number, agora string
+    return api.post<FollowedPolitician>(`/seguindo/${externalId}`);
   },
 
-  deixarDeSeguir: (politicianId: number) => {
-    return api.delete(`/seguindo/${politicianId}`);
+  deixarDeSeguir: (externalId: string) => {   // ← era number, agora string
+    return api.delete(`/seguindo/${externalId}`);
   },
 };

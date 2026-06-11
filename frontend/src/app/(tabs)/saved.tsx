@@ -35,10 +35,12 @@ export default function SavedTab() {
       setProjects([]);
       return;
     }
+
     if (savedProjects.length === 0) {
       setProjects([]);
       return;
     }
+
     projectsService
       .listar({ por_pagina: 100 })
       .then((res) => {
@@ -48,17 +50,17 @@ export default function SavedTab() {
       .catch(() => setProjects([]));
   }, [isAuthenticated, savedProjects]);
 
-  // Busca parlamentares seguidos — sempre do backend, sem depender de savedPoliticians
+  // Busca parlamentares seguidos — sempre do backend
   useEffect(() => {
     if (!isAuthenticated) {
       setPoliticians([]);
       return;
     }
+
     politiciansService
       .getSeguindo()
       .then((lista: any[]) => {
         const mapped: Politician[] = lista.map((p) => ({
-          // usa external_id como id para bater com savedPoliticians
           id: p.politician_external_id ?? String(p.politician_id),
           name: p.politician_name ?? 'Parlamentar',
           party: p.politician_party ?? '',
@@ -75,10 +77,11 @@ export default function SavedTab() {
             attendance: 0,
           },
         }));
+
         setPoliticians(mapped);
       })
       .catch(() => setPoliticians([]));
-  }, [isAuthenticated]); // ← não depende mais de savedPoliticians, busca sempre do backend
+  }, [isAuthenticated]);
 
   // ── Não logado ────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
@@ -94,31 +97,69 @@ export default function SavedTab() {
             paddingVertical: 16,
           }}
         >
-          <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>Salvos</Text>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>Seus projetos e parlamentares</Text>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text }}>
+            Salvos
+          </Text>
+          <Text style={{ fontSize: 14, color: colors.textMuted }}>
+            Seus projetos e parlamentares
+          </Text>
         </SafeAreaView>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <View style={{
-            marginBottom: 16, height: 80, width: 80,
-            alignItems: 'center', justifyContent: 'center',
-            borderRadius: 40, backgroundColor: colors.surface,
-          }}>
+
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 32,
+          }}
+        >
+          <View
+            style={{
+              marginBottom: 16,
+              height: 80,
+              width: 80,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 40,
+              backgroundColor: colors.surface,
+            }}
+          >
             <LogIn size={32} color={colors.textMuted} />
           </View>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>
+
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: 'bold',
+              color: colors.text,
+              marginBottom: 8,
+            }}
+          >
             Faça login para continuar
           </Text>
-          <Text style={{ textAlign: 'center', color: colors.textMuted, marginBottom: 24 }}>
+
+          <Text
+            style={{
+              textAlign: 'center',
+              color: colors.textMuted,
+              marginBottom: 24,
+            }}
+          >
             Esta funcionalidade só está disponível para usuários logados
           </Text>
+
           <Pressable
             onPress={() => router.push('/welcome' as never)}
             style={{
-              borderRadius: 8, backgroundColor: colors.primary,
-              paddingHorizontal: 24, paddingVertical: 12,
+              borderRadius: 8,
+              backgroundColor: colors.primary,
+              paddingHorizontal: 24,
+              paddingVertical: 12,
             }}
           >
-            <Text style={{ fontWeight: '500', color: '#fff' }}>Entrar ou criar conta</Text>
+            <Text style={{ fontWeight: '500', color: '#fff' }}>
+              Entrar ou criar conta
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -133,15 +174,23 @@ export default function SavedTab() {
     <SavedProjects
       projects={projects}
       politicians={politicians}
-      savedPoliticians={politicians.map((p) => p.id)} // ← sempre mostra todos os seguidos
+      savedPoliticians={politicians.map((p) => p.id)}
       onProjectClick={(id) => router.push(`/project/${id}` as never)}
       onToggleSave={(id) => {
-        if (isGuest) { requireLogin(); return; }
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
+
         toggleSaveProject(id);
       }}
       onPoliticianClick={(id) => router.push(`/politician/${id}` as never)}
       onRemovePolitician={async (id) => {
-        if (isGuest) { requireLogin(); return; }
+        if (isGuest) {
+          requireLogin();
+          return;
+        }
+
         try {
           await politiciansService.deixarDeSeguir(id);
           removePolitician(id);

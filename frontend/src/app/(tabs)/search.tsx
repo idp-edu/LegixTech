@@ -47,6 +47,7 @@ export default function SearchTab() {
   const router = useRouter();
   const {
     isGuest,
+    isAuthenticated,
     savedProjects,
     savedPoliticians,
     toggleSaveProject,
@@ -79,6 +80,26 @@ export default function SearchTab() {
   if (loading) return <LoadingState message="Carregando parlamentares..." />;
   if (error) return <ErrorState message={error} onRetry={carregar} />;
 
+  const handleToggleSavePolitician = async (id: string) => {
+    if (isGuest || !isAuthenticated) {
+      showToastMsg('Faça login para seguir parlamentares.');
+      return;
+    }
+    const jaSeguindo = savedPoliticians.includes(id);
+    try {
+      if (jaSeguindo) {
+        await politiciansService.deixarDeSeguir(id);
+        showToastMsg('Deixou de seguir parlamentar');
+      } else {
+        await politiciansService.seguir(id);
+        showToastMsg('Seguindo parlamentar!');
+      }
+      toggleSavePolitician(id);
+    } catch {
+      showToastMsg('Erro ao atualizar. Tente novamente.');
+    }
+  };
+
   return (
     <SearchScreen
       politicians={politicians}
@@ -90,10 +111,7 @@ export default function SearchTab() {
         toggleSaveProject(id);
       }}
       onPoliticianClick={(id) => router.push(`/politician/${id}` as never)}
-      onToggleSavePolitician={(id) => {
-        if (isGuest) { showToastMsg('Faça login para seguir parlamentares.'); return; }
-        toggleSavePolitician(id);
-      }}
+      onToggleSavePolitician={handleToggleSavePolitician}
     />
   );
 }
