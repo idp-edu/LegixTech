@@ -47,4 +47,8 @@ export const authService = {
   async me(token: string) {
     return api.get<AuthUser>('/auth/me', token);
   },
+
+  async updateProfile(payload: { name: string }) {
+    return api.patch<AuthUser>('/auth/me', payload);
+  },
 };

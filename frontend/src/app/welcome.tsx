@@ -1,10 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session/providers/google';
+import * as Crypto from 'expo-crypto';
 
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { useApp } from '@/context/AppContext';
 import { authService } from '@/services/authService';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID!;
 
 export default function WelcomeRoute() {
   const router = useRouter();
@@ -18,11 +25,40 @@ export default function WelcomeRoute() {
   } = useApp();
   const [loading, setLoading] = useState(false);
 
+  const [request, response, promptAsync] = AuthSession.useAuthRequest({
+    clientId: CLIENT_ID,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
   useEffect(() => {
     if (isAuthenticated || isGuest) {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isGuest, router]);
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.accessToken) {
+        handleGoogleToken(authentication.accessToken);
+      }
+    } else if (response?.type === 'error') {
+      Alert.alert('Erro', 'Não foi possível fazer login com Google.');
+      setLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleToken = async (accessToken: string) => {
+    setLoading(true);
+    try {
+      const result = await authService.loginWithGoogle({ token: accessToken });
+      await loginWithGoogle({ token: result.access_token, user: result.user });
+    } catch (err: any) {
+      Alert.alert('Erro ao entrar com Google', err?.message ?? 'Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async (
     type: 'google' | 'biometric' | 'guest' | 'password' | 'register',
@@ -65,15 +101,7 @@ export default function WelcomeRoute() {
 
     if (type === 'google') {
       setLoading(true);
-      try {
-        Alert.alert(
-          'Login com Google',
-          'Login real com Google requer configuração do OAuth. Entrando como visitante.',
-          [{ text: 'OK', onPress: () => continueAsGuest() }],
-        );
-      } finally {
-        setLoading(false);
-      }
+      await promptAsync();
     }
   };
 

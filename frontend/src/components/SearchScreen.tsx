@@ -1,4 +1,4 @@
-import { Search, UserCheck, UserCircle, UserPlus } from 'lucide-react-native';
+import { Filter, Search, UserCheck, UserCircle, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,26 @@ import { useProjectSearch } from '@/hooks/useProjectSearch';
 import type { Politician } from '@/data/mockPoliticians';
 
 import { ProjectCard } from './ProjectCard';
+
+const ODS_LIST = [
+  { numero: 1,  nome: 'Erradicação da Pobreza' },
+  { numero: 2,  nome: 'Fome Zero' },
+  { numero: 3,  nome: 'Saúde e Bem-Estar' },
+  { numero: 4,  nome: 'Educação de Qualidade' },
+  { numero: 5,  nome: 'Igualdade de Gênero' },
+  { numero: 6,  nome: 'Água Potável e Saneamento' },
+  { numero: 7,  nome: 'Energia Limpa' },
+  { numero: 8,  nome: 'Trabalho Decente' },
+  { numero: 9,  nome: 'Indústria e Inovação' },
+  { numero: 10, nome: 'Redução das Desigualdades' },
+  { numero: 11, nome: 'Cidades Sustentáveis' },
+  { numero: 12, nome: 'Consumo Responsável' },
+  { numero: 13, nome: 'Ação Climática' },
+  { numero: 14, nome: 'Vida na Água' },
+  { numero: 15, nome: 'Vida Terrestre' },
+  { numero: 16, nome: 'Paz e Justiça' },
+  { numero: 17, nome: 'Parcerias e Meios de Implementação' },
+];
 
 interface SearchScreenProps {
   politicians: Politician[];
@@ -34,12 +54,14 @@ export function SearchScreen({
 }: SearchScreenProps) {
   const [activeTab, setActiveTab] = useState<'projetos' | 'parlamentares'>('projetos');
   const [searchQuery, setSearchQuery] = useState('');
+  const [odsFilter, setOdsFilter] = useState<number | undefined>(undefined);
   const [houseFilter, setHouseFilter] = useState<'Todos' | 'Senado' | 'Câmara'>('Todos');
   const [stateFilter, setStateFilter] = useState('Todos');
   const { colors } = useTheme();
 
   const { results: filteredProjects, loading: searchLoading } = useProjectSearch(
     activeTab === 'projetos' ? searchQuery : '',
+    activeTab === 'projetos' ? odsFilter : undefined,
   );
 
   const availableStates = ['Todos', ...Array.from(new Set(politicians.map((p) => p.state)))].sort();
@@ -60,7 +82,7 @@ export function SearchScreen({
 
   const TabButton = ({ id, label }: { id: typeof activeTab; label: string }) => (
     <Pressable
-      onPress={() => { setActiveTab(id); setSearchQuery(''); }}
+      onPress={() => { setActiveTab(id); setSearchQuery(''); setOdsFilter(undefined); }}
       style={{ position: 'relative', minHeight: 44, paddingHorizontal: 16, paddingVertical: 12 }}
     >
       <Text style={{ color: activeTab === id ? colors.primary : colors.textMuted, fontWeight: activeTab === id ? '500' : '400' }}>
@@ -100,12 +122,63 @@ export function SearchScreen({
           {searchLoading && <ActivityIndicator size="small" color={colors.primary} />}
         </View>
 
-        {/* ── ABA PROJETOS ────────────────────────────────────────────────── */}
+        {/* ── ABA PROJETOS ─────────────────────────────────────────────────── */}
         {activeTab === 'projetos' && (
           <View style={{ gap: 16 }}>
+
+            {/* Filtro ODS */}
+            <View style={{ gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Filter size={14} color={colors.textMuted} />
+                <Text style={{ fontSize: 14, fontWeight: '500', color: colors.textMuted }}>Filtrar por ODS</Text>
+                {odsFilter !== undefined && (
+                  <Pressable
+                    onPress={() => setOdsFilter(undefined)}
+                    style={{ marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: colors.primary }}
+                  >
+                    <Text style={{ fontSize: 12, color: '#fff', fontWeight: '500' }}>Limpar</Text>
+                  </Pressable>
+                )}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                {ODS_LIST.map((ods) => {
+                  const active = odsFilter === ods.numero;
+                  return (
+                    <Pressable
+                      key={ods.numero}
+                      onPress={() => setOdsFilter(active ? undefined : ods.numero)}
+                      style={{
+                        minHeight: 44,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        borderRadius: 999,
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        backgroundColor: active ? colors.primary : colors.surface,
+                        borderWidth: active ? 0 : 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: active ? '#fff' : colors.primary }}>
+                        {ods.numero}
+                      </Text>
+                      <Text style={{ fontSize: 13, color: active ? '#fff' : colors.text }}>
+                        {ods.nome}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
-                {searchQuery ? 'Resultados da Busca' : 'Todos os Projetos'}
+                {odsFilter !== undefined
+                  ? `ODS ${odsFilter} — ${ODS_LIST.find((o) => o.numero === odsFilter)?.nome}`
+                  : searchQuery
+                  ? 'Resultados da Busca'
+                  : 'Todos os Projetos'}
               </Text>
               {!searchLoading && (
                 <Text style={{ fontSize: 14, color: colors.textMuted }}>
@@ -118,14 +191,16 @@ export function SearchScreen({
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={{ marginTop: 12, color: colors.textMuted }}>
-                  {searchQuery ? 'Buscando projetos...' : 'Carregando projetos...'}
+                  {searchQuery || odsFilter ? 'Buscando projetos...' : 'Carregando projetos...'}
                 </Text>
               </View>
             ) : filteredProjects.length === 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 64 }}>
                 <Search size={48} color={colors.textMuted} />
                 <Text style={{ marginTop: 12, color: colors.textMuted }}>
-                  {searchQuery
+                  {odsFilter
+                    ? `Nenhum projeto encontrado para ODS ${odsFilter}`
+                    : searchQuery
                     ? `Nenhum projeto encontrado para "${searchQuery}"`
                     : 'Nenhum projeto disponível no momento'}
                 </Text>
@@ -144,7 +219,7 @@ export function SearchScreen({
           </View>
         )}
 
-        {/* ── ABA PARLAMENTARES ───────────────────────────────────────────── */}
+        {/* ── ABA PARLAMENTARES ────────────────────────────────────────────── */}
         {activeTab === 'parlamentares' && (
           <View style={{ gap: 16 }}>
             <View>
