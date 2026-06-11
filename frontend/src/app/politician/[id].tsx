@@ -86,7 +86,14 @@ export default function PoliticianDetailScreen() {
     politiciansService
       .getSeguindo()
       .then((lista: any[]) => {
-        setIsSaved(lista.some((p) => String(p.politician_id) === String(id)));
+        // Cruza pelo external_id que agora vem no retorno
+        setIsSaved(
+          lista.some(
+            (p) =>
+              String(p.politician_external_id) === String(id) ||
+              String(p.politician_id) === String(id),
+          ),
+        );
       })
       .catch(() => {});
   }, [isAuthenticated, id]);
@@ -121,20 +128,15 @@ export default function PoliticianDetailScreen() {
       return;
     }
     try {
-      const lista: any[] = await politiciansService.getSeguindo();
-
       if (isSaved) {
-        const entrada = lista.find(
-          (p: any) => String(p.politician_id) === String(politicianLocalId),
-        );
-        if (entrada) await politiciansService.deixarDeSeguir(Number(entrada.politician_id));
+        await politiciansService.deixarDeSeguir(politicianLocalId); // ← era Number(), agora string
         setIsSaved(false);
-        toggleSavePolitician(politicianLocalId); // ← sincroniza contexto/storage
+        toggleSavePolitician(politicianLocalId);
         showToastMsg('Deixou de seguir parlamentar');
       } else {
-        await politiciansService.seguir(Number(politicianLocalId));
+        await politiciansService.seguir(politicianLocalId);         // ← era Number(), agora string
         setIsSaved(true);
-        toggleSavePolitician(politicianLocalId); // ← sincroniza contexto/storage
+        toggleSavePolitician(politicianLocalId);
         showToastMsg('Seguindo parlamentar!');
       }
     } catch {

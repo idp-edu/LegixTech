@@ -15,6 +15,7 @@ class FollowedPoliticianResponse(BaseModel):
     politician_party: str | None = None
     politician_state: str | None = None
     politician_photo_url: str | None = None
+    politician_external_id: str | None = None  # ← campo adicionado
 
     class Config:
         from_attributes = True

@@ -88,13 +88,13 @@ export default function SearchTab() {
     const jaSeguindo = savedPoliticians.includes(id);
     try {
       if (jaSeguindo) {
-        await politiciansService.deixarDeSeguir(Number(id));
+        await politiciansService.deixarDeSeguir(id);
         showToastMsg('Deixou de seguir parlamentar');
       } else {
-        await politiciansService.seguir(Number(id));
+        await politiciansService.seguir(id);
         showToastMsg('Seguindo parlamentar!');
       }
-      toggleSavePolitician(id); // sincroniza contexto + storage
+      toggleSavePolitician(id);
     } catch {
       showToastMsg('Erro ao atualizar. Tente novamente.');
     }
