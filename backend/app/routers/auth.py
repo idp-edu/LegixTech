@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.core.database import get_db
-from app.core.security import verify_token, hash_password, verify_password, create_access_token
-from app.schemas.auth import GoogleLoginRequest, LoginRequest, RegisterRequest, TokenResponse
+from app.core.security import verify_token, hash_password, verify_password, create_access_token, get_current_user
+from app.schemas.auth import GoogleLoginRequest, LoginRequest, RegisterRequest, TokenResponse, UpdateProfileRequest
 from app.services.auth_service import login_with_google
 from app.models.user import User
 
@@ -66,3 +66,20 @@ def get_me(authorization: Optional[str] = Header(None), db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return user
+
+
+@router.patch("/me")
+def update_me(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if body.name is not None:
+        name = body.name.strip()
+        if len(name) < 2:
+            raise HTTPException(status_code=422, detail="Nome deve ter pelo menos 2 caracteres")
+        current_user.name = name
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user

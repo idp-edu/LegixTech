@@ -5,16 +5,27 @@ import {
   FileText,
   HelpCircle,
   LogOut,
+  Pencil,
   Settings,
   User,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { authService } from '@/services/authService';
 
 interface ProfileScreenProps {
   onLogout?: () => void;
@@ -30,26 +41,51 @@ export function ProfileScreen({
   onNavigateToSaved,
 }: ProfileScreenProps) {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [notificationSettings, setNotificationSettings] = useState<Record<NotificationKey, boolean>>({
     savedProjects: true,
     interests: true,
     dailyDigest: false,
   });
   const { colors } = useTheme();
-  const { user } = useApp();
+  const { user, setUser } = useApp();
 
   const displayName =
-    user?.name && user.name.trim().length > 0
-      ? user.name
-      : 'Usuário';
-
+    user?.name && user.name.trim().length > 0 ? user.name : 'Usuário';
   const displayEmail = user?.email ?? 'E-mail não informado';
-
   const initials = displayName
     .split(' ')
     .slice(0, 2)
     .map((n: string) => n[0]?.toUpperCase() ?? '')
     .join('');
+
+  const openEditModal = () => {
+    setEditName(user?.name ?? '');
+    setSaveError('');
+    setShowEditModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    const trimmed = editName.trim();
+    if (trimmed.length < 2) {
+      setSaveError('Nome deve ter pelo menos 2 caracteres.');
+      return;
+    }
+    setSaving(true);
+    setSaveError('');
+    try {
+      const updated = await authService.updateProfile({ name: trimmed });
+      await setUser({ ...user!, ...updated });
+      setShowEditModal(false);
+    } catch (e: any) {
+      setSaveError(e?.message ?? 'Erro ao salvar. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const menuItems: Array<{
     icon: typeof User;
@@ -57,7 +93,12 @@ export function ProfileScreen({
     description: string;
     onClick?: () => void;
   }> = [
-    { icon: User, label: 'Configurações da Conta', description: 'Gerencie seu perfil' },
+    {
+      icon: User,
+      label: 'Configurações da Conta',
+      description: 'Edite seu nome de exibição',
+      onClick: openEditModal,
+    },
     {
       icon: Bell,
       label: 'Notificações',
@@ -76,6 +117,100 @@ export function ProfileScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+
+      {/* ── Modal de edição de nome ───────────────────────────────────────── */}
+      <Modal
+        visible={showEditModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              borderRadius: 12,
+              backgroundColor: colors.surface,
+              padding: 24,
+              gap: 16,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
+              Editar Perfil
+            </Text>
+
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 14, color: colors.textMuted }}>Nome de exibição</Text>
+              <TextInput
+                value={editName}
+                onChangeText={(t) => { setEditName(t); setSaveError(''); }}
+                placeholder="Seu nome"
+                placeholderTextColor={colors.textMuted}
+                style={{
+                  borderWidth: 1,
+                  borderColor: saveError ? '#EF4444' : colors.border,
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  color: colors.text,
+                  fontSize: 16,
+                  minHeight: 44,
+                }}
+              />
+              {saveError ? (
+                <Text style={{ fontSize: 13, color: '#EF4444' }}>{saveError}</Text>
+              ) : null}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Pressable
+                onPress={() => setShowEditModal(false)}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ color: colors.textMuted, fontWeight: '500' }}>Cancelar</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleSaveProfile}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  backgroundColor: saving ? colors.border : colors.primary,
+                }}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: '500' }}>Salvar</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <LinearGradient
         colors={['#1e40af', '#1e3a8a']}
         style={{ paddingHorizontal: 16, paddingVertical: 32 }}
@@ -94,10 +229,15 @@ export function ProfileScreen({
             >
               <Text style={{ fontSize: 24, fontWeight: 'bold', color: 'white' }}>{initials}</Text>
             </View>
-            <View>
-              <Text style={{ marginBottom: 4, fontSize: 20, fontWeight: 'bold', color: 'white' }}>
-                {displayName}
-              </Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ marginBottom: 4, fontSize: 20, fontWeight: 'bold', color: 'white' }}>
+                  {displayName}
+                </Text>
+                <Pressable onPress={openEditModal} hitSlop={8}>
+                  <Pencil size={16} color="rgba(255,255,255,0.8)" />
+                </Pressable>
+              </View>
               <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>
                 {displayEmail}
               </Text>
@@ -112,7 +252,6 @@ export function ProfileScreen({
       >
         {menuItems.map((item, index) => {
           const Icon = item.icon;
-
           return (
             <View key={index}>
               <Pressable
@@ -141,12 +280,10 @@ export function ProfileScreen({
                 >
                   <Icon size={20} color="#fff" />
                 </View>
-
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '500', color: colors.text }}>{item.label}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.description}</Text>
                 </View>
-
                 <ChevronRight size={20} color={colors.textMuted} />
               </Pressable>
 
@@ -165,52 +302,25 @@ export function ProfileScreen({
                   <Text style={{ fontWeight: '500', color: colors.text }}>
                     Configurações de Notificação
                   </Text>
-
-                  {[
-                    {
-                      key: 'savedProjects' as NotificationKey,
-                      title: 'Projetos Salvos',
-                      desc: 'Notificar quando projeto salvo tiver atualização',
-                    },
-                    {
-                      key: 'interests' as NotificationKey,
-                      title: 'Temas de Interesse',
-                      desc: 'Notificar sobre temas favoritos',
-                    },
-                    {
-                      key: 'dailyDigest' as NotificationKey,
-                      title: 'Resumo Diário',
-                      desc: 'Receber resumo todo dia pela manhã',
-                    },
-                  ].map(({ key, title, desc }) => (
-                    <View
-                      key={key}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        minHeight: 44,
-                      }}
-                    >
+                  {([
+                    { key: 'savedProjects' as NotificationKey, title: 'Projetos Salvos', desc: 'Notificar quando projeto salvo tiver atualização' },
+                    { key: 'interests' as NotificationKey, title: 'Temas de Interesse', desc: 'Notificar sobre temas favoritos' },
+                    { key: 'dailyDigest' as NotificationKey, title: 'Resumo Diário', desc: 'Receber resumo todo dia pela manhã' },
+                  ]).map(({ key, title, desc }) => (
+                    <View key={key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
                       <View style={{ flex: 1, paddingRight: 16 }}>
                         <Text style={{ fontWeight: '500', color: colors.text }}>{title}</Text>
                         <Text style={{ fontSize: 14, color: colors.textMuted }}>{desc}</Text>
                       </View>
-
                       <Switch
                         value={notificationSettings[key]}
-                        onValueChange={(v) =>
-                          setNotificationSettings((prev) => ({ ...prev, [key]: v }))
-                        }
+                        onValueChange={(v) => setNotificationSettings((prev) => ({ ...prev, [key]: v }))}
                         trackColor={{ false: colors.border, true: colors.primary }}
                       />
                     </View>
                   ))}
-
                   <View style={{ gap: 8 }}>
-                    <Text style={{ fontWeight: '500', color: colors.text }}>
-                      Histórico de Notificações
-                    </Text>
+                    <Text style={{ fontWeight: '500', color: colors.text }}>Histórico de Notificações</Text>
                     <View style={{ alignItems: 'center', paddingVertical: 32 }}>
                       <BellOff size={48} color={colors.textMuted} />
                       <Text style={{ color: colors.textMuted }}>Nenhuma notificação ainda.</Text>
@@ -237,16 +347,7 @@ export function ProfileScreen({
             padding: 16,
           }}
         >
-          <View
-            style={{
-              height: 40,
-              width: 40,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 20,
-              backgroundColor: colors.surface,
-            }}
-          >
+          <View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: colors.surface }}>
             <LogOut size={20} color="#EF4444" />
           </View>
           <View style={{ flex: 1 }}>
