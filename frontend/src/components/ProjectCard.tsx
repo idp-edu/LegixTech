@@ -1,7 +1,7 @@
 import { Bookmark, Calendar, TrendingUp } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { getODSColor, getODSColorByNumber } from '@/data/odsMapping';
+import { getODSByNumber, getODSColor, getODSColorByNumber } from '@/data/odsMapping';
 import { useTheme } from '@/hooks/useTheme';
 import type { ProjectStatus } from '@/types/project';
 
@@ -9,12 +9,13 @@ import { StatusBadge } from './StatusBadge';
 
 interface ProjectCardProps {
   id: string;
-  title: string;
+  title: string;        // código técnico: "PL 4476"
+  headline?: string;    // ← NOVO: manchete legível
+  ementa?: string;      // ← NOVO: ementa completa (usada como fallback)
   year: string;
   status: ProjectStatus;
   trending?: boolean;
   category: string;
-  ementa?: string;
   ods?: number[];
   temas?: string[];
   saved?: boolean;
@@ -32,11 +33,12 @@ function truncate(text: string, max = 120): string {
 export function ProjectCard({
   id,
   title,
+  headline,
+  ementa,
   year,
   status,
   trending,
   category,
-  ementa,
   ods,
   temas,
   saved,
@@ -48,6 +50,9 @@ export function ProjectCard({
   const { colors } = useTheme();
   const primeiroOds = ods?.[0];
   const primeiraTema = temas?.[0];
+
+  // Título principal: usa headline se disponível, senão ementa truncada, senão código
+  const displayTitle = headline || (ementa ? truncate(ementa, 100) : title);
 
   return (
     <Pressable
@@ -104,26 +109,20 @@ export function ProjectCard({
         </Pressable>
       </View>
 
-      {/* Título */}
-      <Text style={{ marginBottom: 6, fontSize: 16, fontWeight: '600', lineHeight: 22, color: colors.text }}>
-        {title}
+      {/* ← NOVO: Título tipo manchete em destaque */}
+      <Text style={{ marginBottom: 4, fontSize: 16, fontWeight: '600', lineHeight: 22, color: colors.text }}>
+        {displayTitle}
       </Text>
 
-      {/* Ementa truncada — F1 */}
-      {ementa ? (
-        <Text style={{ marginBottom: 10, fontSize: 13, lineHeight: 19, color: colors.textMuted }}>
-          {truncate(ementa)}
-        </Text>
-      ) : null}
+      {/* ← NOVO: Código técnico em posição secundária */}
+      <Text style={{ marginBottom: 10, fontSize: 12, color: colors.textMuted }}>
+        {title} · {year}
+      </Text>
 
-      {/* Linha inferior: ano + tema + ODS */}
+      {/* Linha inferior: tema + ODS */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Calendar size={14} color={colors.textMuted} />
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>{year}</Text>
-        </View>
 
-        {/* Badge de tema — B3 */}
+        {/* Badge de tema */}
         {primeiraTema ? (
           <Text
             style={{
@@ -158,24 +157,27 @@ export function ProjectCard({
           </Text>
         ) : null}
 
-        {/* Badge de ODS — B2 */}
-        {primeiroOds ? (
-          <Text
-            style={{
-              borderRadius: 4,
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              fontSize: 12,
-              fontWeight: '500',
-              backgroundColor: getODSColorByNumber(primeiroOds, true),
-              color: getODSColorByNumber(primeiroOds, false),
-              borderWidth: 1,
-              borderColor: getODSColorByNumber(primeiroOds, false),
-            }}
-          >
-            ODS {primeiroOds}
-          </Text>
-        ) : null}
+        {/* ← ALTERADO: Badge de ODS agora mostra o NOME em vez de "ODS 9" */}
+        {primeiroOds ? (() => {
+          const odsInfo = getODSByNumber(primeiroOds);
+          return (
+            <Text
+              style={{
+                borderRadius: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                fontSize: 12,
+                fontWeight: '500',
+                backgroundColor: getODSColorByNumber(primeiroOds, true),
+                color: getODSColorByNumber(primeiroOds, false),
+                borderWidth: 1,
+                borderColor: getODSColorByNumber(primeiroOds, false),
+              }}
+            >
+              {odsInfo ? odsInfo.name : `ODS ${primeiroOds}`}
+            </Text>
+          );
+        })() : null}
       </View>
     </Pressable>
   );

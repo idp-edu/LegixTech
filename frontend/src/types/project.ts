@@ -63,7 +63,9 @@ export interface TimelineEvent {
 export interface UiProject {
   id: string;
   externalId?: string;
-  title: string;
+  title: string;        // código do projeto: "PL 4476"
+  headline: string;     // ← NOVO: título em linguagem simples para exibir em destaque
+  ementa?: string;      // ← NOVO: ementa original completa do projeto
   year: string;
   status: ProjectStatus;
   summary?: string;
@@ -72,8 +74,8 @@ export interface UiProject {
   source?: string;
   themes?: string[];
   ods: number[];
-  officialUrl?: string;       // ← novo: link para o texto oficial
-  timeline?: TimelineEvent[]; // ← novo: eventos de tramitação
+  officialUrl?: string;
+  timeline?: TimelineEvent[];
   trending?: boolean;
   impact?: string[];
   affected?: string[];
