@@ -76,12 +76,12 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(20, ge=1, le=100),
+    por_pagina: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     # CORRIGIDO: busca uma página maior quando há filtro de ODS,
     # porque o filtro é feito após a classificação dinâmica
-    limit_busca = por_pagina * 5 if ods is not None else por_pagina
+    limit_busca = por_pagina * 10 if ods is not None else por_pagina
     local = ProposicaoRepository.listar(
         db,
         skip=(pagina - 1) * por_pagina,
