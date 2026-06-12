@@ -76,12 +76,11 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(20, ge=1, le=100),
+    por_pagina: int = Query(50, ge=1, le=100),  # ← era 20
     db: Session = Depends(get_db),
 ):
-    # CORRIGIDO: busca uma página maior quando há filtro de ODS,
-    # porque o filtro é feito após a classificação dinâmica
-    limit_busca = por_pagina * 5 if ods is not None else por_pagina
+    limit_busca = por_pagina * 10 if ods is not None else por_pagina  # ← era * 5
+
     local = ProposicaoRepository.listar(
         db,
         skip=(pagina - 1) * por_pagina,
@@ -90,7 +89,12 @@ async def listar_projetos(
         ano=ano,
         q=q,
     )
-    if local:
+
+    # ✅ CORREÇÃO PRINCIPAL: só usa banco local se tiver registros suficientes.
+    # Antes: "if local" aceitava qualquer quantidade (até 3-5 registros),
+    # bloqueando o fallback para a API da Câmara indefinidamente.
+    MINIMO_LOCAL = 20
+    if local and len(local) >= MINIMO_LOCAL:
         resultado = []
         for p in local:
             temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
@@ -108,7 +112,6 @@ async def listar_projetos(
                 "estagio_atual": _inferir_estagio(p.situacao or ""),
                 "estagios": ESTAGIOS,
             }
-            # CORRIGIDO: filtro de ODS aplicado corretamente após classificação
             if ods is None or any(o["numero"] == ods for o in ods_list):
                 resultado.append(item)
                 if len(resultado) >= por_pagina:
@@ -116,8 +119,10 @@ async def listar_projetos(
 
         return {"dados": resultado, "total": len(resultado), "pagina": pagina, "fonte": "banco_local"}
 
+    # Fallback: busca direto na API da Câmara
+    itens_camara = max(por_pagina, 50)  # ← garante mínimo 50 da Câmara
     data_inicio = f"{ano}-01-01" if ano else None
-    data_fim = f"{ano}-12-31" if ano else None
+    data_fim    = f"{ano}-12-31" if ano else None
     try:
         raw = await camara.listar_proposicoes(
             siglaTipo=tipo,
@@ -125,7 +130,7 @@ async def listar_projetos(
             dataApresentacaoFim=data_fim,
             keywords=q,
             pagina=pagina,
-            itens=por_pagina,
+            itens=itens_camara,
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"API da Câmara indisponível: {e}")
@@ -160,7 +165,6 @@ async def listar_projetos(
             ),
             "estagios": ESTAGIOS,
         }
-        # CORRIGIDO: filtro de ODS aplicado na API da Câmara também
         if ods is None or any(o["numero"] == ods for o in ods_list):
             resultado.append(item)
 
@@ -206,7 +210,6 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
     if resultado.get("fonte") == "banco_local":
         temas = resultado.get("temas", [])
         ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
-        # CORRIGIDO: garante que temas e ods sempre vêm populados no detalhe
         return {
             **resultado,
             "ods": ods_list,
@@ -216,9 +219,9 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
 
     try:
         autores_raw = await camara.obter_autores(int(external_id))
-        temas_raw = await camara.obter_temas(int(external_id))
+        temas_raw   = await camara.obter_temas(int(external_id))
         autores = autores_raw.get("dados", [])
-        temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
+        temas   = [t.get("tema", "") for t in temas_raw.get("dados", [])]
     except Exception:
         autores, temas = [], []
 
@@ -255,11 +258,11 @@ async def tramitacao_projeto(external_id: str):
     historico = [
         {
             "sequencia": t.get("sequencia"),
-            "dataHora": t.get("dataHora"),
-            "orgao": t.get("siglaOrgao"),
-            "situacao": t.get("descricaoSituacao") or t.get("descricaoTramitacao"),
-            "despacho": t.get("despacho"),
-            "estagio": _inferir_estagio(t.get("descricaoSituacao") or t.get("descricaoTramitacao") or ""),
+            "dataHora":  t.get("dataHora"),
+            "orgao":     t.get("siglaOrgao"),
+            "situacao":  t.get("descricaoSituacao") or t.get("descricaoTramitacao"),
+            "despacho":  t.get("despacho"),
+            "estagio":   _inferir_estagio(t.get("descricaoSituacao") or t.get("descricaoTramitacao") or ""),
         }
         for t in tramitacoes
     ]
