@@ -23,13 +23,19 @@ def _cache_set(key: str, value: Any) -> None:
     _cache[key] = (time.time(), value)
 
 
+# ← CORRIGIDO: limpa todo o cache in-memory (útil para forçar refresh)
+def limpar_cache() -> None:
+    _cache.clear()
+
+
 async def _get(path: str, params: dict | None = None) -> Any:
+    # ← CORRIGIDO: chave de cache inclui os params ordenados de forma consistente
     cache_key = path + str(sorted((params or {}).items()))
     cached = _cache_get(cache_key)
     if cached is not None:
         return cached
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:  # ← era 20s, aumentado para 30s
         response = await client.get(
             f"{BASE_URL}{path}",
             params=params,
@@ -48,16 +54,18 @@ async def listar_proposicoes(
     dataApresentacaoFim: str | None = None,
     keywords: str | None = None,
     pagina: int = 1,
-    itens: int = 20,
+    itens: int = 50,  # ← CORRIGIDO: era 20
 ) -> dict:
-    # A API da Câmara usa "ano" em vez de dataApresentacaoInicio/Fim
     ano: str | None = None
     if dataApresentacaoInicio:
-        ano = dataApresentacaoInicio[:4]  # extrai "2024" de "2024-01-01"
+        ano = dataApresentacaoInicio[:4]
+
+    # ← CORRIGIDO: API da Câmara aceita no máximo 100 itens por página
+    itens_real = min(itens, 100)
 
     params: dict[str, Any] = {
         "pagina": pagina,
-        "itens": itens,
+        "itens": itens_real,
         "ordenarPor": "id",
         "ordem": "DESC",
     }
@@ -66,15 +74,30 @@ async def listar_proposicoes(
     if ano:
         params["ano"] = ano
     if keywords:
-        params["ementa"] = keywords  # único filtro de texto aceito pela API
+        params["ementa"] = keywords
 
     try:
-        return await _get("/proposicoes", params)
+        data = await _get("/proposicoes", params)
+        # ← CORRIGIDO: se retornou menos que o esperado E a API respondeu sem erro,
+        # tenta sem filtros de ordenação (alguns filtros causam limite silencioso de 5)
+        dados = data.get("dados", [])
+        if len(dados) < 10 and not keywords and not siglaTipo and not ano:
+            params_fallback: dict[str, Any] = {
+                "pagina": pagina,
+                "itens": itens_real,
+            }
+            data_fallback = await _get("/proposicoes", params_fallback)
+            if len(data_fallback.get("dados", [])) > len(dados):
+                return data_fallback
+        return data
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code if exc.response is not None else None
         if status == 400:
             # Fallback mínimo sem ordenação
-            fallback: dict[str, Any] = {"pagina": pagina, "itens": itens}
+            fallback: dict[str, Any] = {
+                "pagina": pagina,
+                "itens": itens_real,
+            }
             if siglaTipo:
                 fallback["siglaTipo"] = siglaTipo
             if ano:
