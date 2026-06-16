@@ -89,17 +89,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
 
+  // ← CORREÇÃO: timeout de 4s para não travar a tela se o backend estiver offline
   const validateToken = async (storedToken: string): Promise<boolean> => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
       const response = await fetch(`${API_URL}/auth/me`, {
         headers: {
           Authorization: `Bearer ${storedToken}`,
           Accept: 'application/json',
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       return response.ok;
     } catch {
-      return true;
+      return true; // falha de rede ou timeout = assume token válido, não bloqueia
     }
   };
 
