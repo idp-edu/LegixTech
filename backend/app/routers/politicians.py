@@ -274,7 +274,15 @@ def meus_politicos_salvos(
 @router.get("/{external_id}")
 def perfil_politico(external_id: str, db: Session = Depends(get_db)):
     p = _buscar_ou_criar_politico(external_id, db)
-    # ✅ campos em inglês
+
+    votos_db = db.query(PoliticianVote).filter(PoliticianVote.politician_id == p.id).all()
+    total = len(votos_db)
+    favor = sum(1 for v in votos_db if v.vote == "Sim")
+    contra = sum(1 for v in votos_db if v.vote == "Não")
+    abstencoes = sum(1 for v in votos_db if v.vote in ("Abstenção", "Abstenção por Liderança"))
+  
+    outros = total - favor - contra - abstencoes
+
     return {
         "id": p.id,
         "external_id": p.external_id,
@@ -286,12 +294,13 @@ def perfil_politico(external_id: str, db: Session = Depends(get_db)):
         "bio": p.bio,
         "email": p.email,
         "stats": {
-            "total_votes": p.total_votes,
-            "votes_in_favor": p.votes_in_favor,
-            "votes_against": p.votes_against,
-            "abstentions": p.abstentions,
-            "projects_presented": p.projects_presented,
-            "attendance": p.attendance,
+            "total_votes": total,
+            "votes_in_favor": favor,
+            "votes_against": contra,
+            "abstentions": abstencoes,
+            "other_votes": outros,        
+            "projects_presented": None,   
+            "attendance": None,           
         },
     }
 
