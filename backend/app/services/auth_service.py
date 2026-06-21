@@ -17,21 +17,31 @@ def verify_google_token(token: str):
         return None
 
 def get_or_create_user(db: Session, google_data: dict):
-    user = db.query(User).filter(
-        User.google_id == google_data["sub"]
-    ).first()
+    # 1. Tenta pelo google_id (login Google já feito antes)
+    user = db.query(User).filter(User.google_id == google_data["sub"]).first()
+    if user:
+        return user
 
-    if not user:
-        user = User(
-            email=google_data["email"],
-            name=google_data["name"],
-            picture=google_data.get("picture"),
-            google_id=google_data["sub"]
-        )
-        db.add(user)
+    # 2. Tenta pelo e-mail (conta criada por senha — vincula o Google à conta existente)
+    user = db.query(User).filter(User.email == google_data["email"]).first()
+    if user:
+        user.google_id = google_data["sub"]
+        if not user.picture and google_data.get("picture"):
+            user.picture = google_data.get("picture")  # aproveita foto do Google
         db.commit()
         db.refresh(user)
+        return user
 
+    # 3. Nenhuma conta existe — cria nova
+    user = User(
+        email=google_data["email"],
+        name=google_data["name"],
+        picture=google_data.get("picture"),
+        google_id=google_data["sub"]
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return user
 
 def login_with_google(db: Session, token: str):
