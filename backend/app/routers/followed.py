@@ -12,26 +12,27 @@ from typing import List
 router = APIRouter(prefix="/seguindo", tags=["Seguindo Políticos"])
 
 
-def _get_or_fetch_politician(external_id: str, db: Session) -> Politician:
+async def _get_or_fetch_politician(external_id: str, db: Session) -> Politician:
     """Busca político no banco; se não achar, vai na API da Câmara e cria."""
     p = db.query(Politician).filter(Politician.external_id == external_id).first()
     if p:
         return p
 
     try:
-        resp = httpx.get(
-            f"https://dadosabertos.camara.leg.br/api/v2/deputados/{external_id}",
-            timeout=10
-        )
+        async with httpx.AsyncClient() as client:  # ✅ assíncrono
+            resp = await client.get(
+                f"https://dadosabertos.camara.leg.br/api/v2/deputados/{external_id}",
+                timeout=10
+            )
         if resp.status_code == 200:
             dados = resp.json().get("dados", {})
             p = Politician(
                 external_id=external_id,
                 name=dados.get("nomeCivil") or dados.get("nome", ""),
-                party=dados.get("siglaPartido", ""),
-                state=dados.get("siglaUf", ""),
-                house="camara",
-                photo_url=dados.get("urlFoto", ""),
+                party=dados.get("ultimoStatus", {}).get("siglaPartido") or dados.get("siglaPartido", ""),
+                state=dados.get("ultimoStatus", {}).get("siglaUf") or dados.get("siglaUf", ""),
+                house="Câmara",
+                photo_url=dados.get("ultimoStatus", {}).get("urlFoto") or dados.get("urlFoto", ""),
             )
             db.add(p)
             db.commit()
@@ -64,8 +65,8 @@ def listar_seguindo(current_user: User = Depends(get_current_user), db: Session 
 
 
 @router.post("/{external_id}", response_model=FollowedPoliticianResponse, status_code=status.HTTP_201_CREATED)
-def seguir_politico(external_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    p = _get_or_fetch_politician(external_id, db)  # ✅ busca no banco ou na API
+async def seguir_politico(external_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    p = await _get_or_fetch_politician(external_id, db)  # ✅ await na função async
 
     if db.query(FollowedPolitician).filter(
         FollowedPolitician.user_id == current_user.id,

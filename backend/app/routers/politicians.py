@@ -1,8 +1,8 @@
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
-import httpx
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -21,7 +21,7 @@ SENADO_API = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual"
 _CACHE_MIN_DEPUTADOS = 500
 
 
-def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
+async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
     politico = db.query(Politician).filter(Politician.external_id == external_id).first()
     if politico:
         return politico
@@ -29,11 +29,12 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
     if external_id.startswith("sen_"):
         codigo = external_id.replace("sen_", "")
         try:
-            resp = httpx.get(
-                f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
-                headers={"Accept": "application/json"},
-                timeout=15,
-            )
+            async with httpx.AsyncClient() as client:  # ✅
+                resp = await client.get(
+                    f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
+                    headers={"Accept": "application/json"},
+                    timeout=15,
+                )
             if resp.status_code != 200:
                 raise HTTPException(status_code=404, detail="Senador não encontrado")
 
@@ -48,7 +49,6 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
                 .get("Parlamentar", {})
                 .get("MandatoAtual", {})
             )
-
             politico = Politician(
                 external_id=external_id,
                 name=detalhe.get("NomeParlamentar", ""),
@@ -69,7 +69,8 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
         except Exception:
             raise HTTPException(status_code=404, detail="Senador não encontrado")
 
-    resp = httpx.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
+    async with httpx.AsyncClient() as client:  # ✅
+        resp = await client.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
 
@@ -90,13 +91,14 @@ def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
     return politico
 
 
-def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None) -> list:
+async def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None) -> list:
     try:
-        resp = httpx.get(
-            SENADO_API,
-            headers={"Accept": "application/json"},
-            timeout=15,
-        )
+        async with httpx.AsyncClient() as client:  # ✅
+            resp = await client.get(
+                SENADO_API,
+                headers={"Accept": "application/json"},
+                timeout=15,
+            )
         if resp.status_code != 200:
             return []
 
@@ -123,7 +125,6 @@ def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None)
             if estado and estado.upper() != estado_senador.upper():
                 continue
 
-            # ✅ campos em inglês
             resultado.append(PoliticianResponse(
                 external_id=f"sen_{codigo}",
                 name=nome_senador,
@@ -139,7 +140,7 @@ def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None)
 
 
 @router.get("/", response_model=PoliticianListResponse)
-def listar_politicos(
+async def listar_politicos(
     nome: Optional[str] = Query(None),
     partido: Optional[str] = Query(None),
     estado: Optional[str] = Query(None),
@@ -186,7 +187,7 @@ def listar_politicos(
         )
 
     if casa == "Senado":
-        senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
+        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)  # ✅
         inicio = (pagina - 1) * por_pagina
         return PoliticianListResponse(
             total=len(senadores),
@@ -204,12 +205,12 @@ def listar_politicos(
     if estado:
         params["siglaUf"] = estado.upper()
 
-    resp = httpx.get(f"{CAMARA_API}/deputados", params=params, timeout=10)
+    async with httpx.AsyncClient() as client:  # ✅
+        resp = await client.get(f"{CAMARA_API}/deputados", params=params, timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar API da Câmara")
 
     dados_camara = resp.json().get("dados", [])
-    # ✅ campos em inglês
     resultados_camara = [
         PoliticianResponse(
             external_id=str(d.get("id")),
@@ -223,7 +224,7 @@ def listar_politicos(
     ]
 
     if not casa or casa.lower() == "todos":
-        senadores = _buscar_senadores(nome=nome, partido=partido, estado=estado)
+        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)  # ✅
         todos = resultados_camara + senadores
         inicio = (pagina - 1) * por_pagina
         return PoliticianListResponse(
@@ -255,7 +256,6 @@ def meus_politicos_salvos(
     )
     return {
         "total": len(salvos),
-        # ✅ campos em inglês
         "politicos": [
             {
                 "id": s.politician.id,
@@ -272,15 +272,14 @@ def meus_politicos_salvos(
 
 
 @router.get("/{external_id}")
-def perfil_politico(external_id: str, db: Session = Depends(get_db)):
-    p = _buscar_ou_criar_politico(external_id, db)
+async def perfil_politico(external_id: str, db: Session = Depends(get_db)):
+    p = await _buscar_ou_criar_politico(external_id, db)  # ✅
 
     votos_db = db.query(PoliticianVote).filter(PoliticianVote.politician_id == p.id).all()
     total = len(votos_db)
     favor = sum(1 for v in votos_db if v.vote == "Sim")
     contra = sum(1 for v in votos_db if v.vote == "Não")
     abstencoes = sum(1 for v in votos_db if v.vote in ("Abstenção", "Abstenção por Liderança"))
-  
     outros = total - favor - contra - abstencoes
 
     return {
@@ -298,15 +297,15 @@ def perfil_politico(external_id: str, db: Session = Depends(get_db)):
             "votes_in_favor": favor,
             "votes_against": contra,
             "abstentions": abstencoes,
-            "other_votes": outros,        
-            "projects_presented": None,   
-            "attendance": None,           
+            "other_votes": outros,
+            "projects_presented": None,
+            "attendance": None,
         },
     }
 
 
 @router.get("/{external_id}/projetos")
-def projetos_do_politico(
+async def projetos_do_politico(
     external_id: str,
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
@@ -315,7 +314,8 @@ def projetos_do_politico(
         return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": 0, "projetos": []}
 
     params = {"idDeputadoAutor": external_id, "pagina": pagina, "itens": por_pagina}
-    resp = httpx.get(f"{CAMARA_API}/proposicoes", params=params, timeout=10)
+    async with httpx.AsyncClient() as client:  # ✅
+        resp = await client.get(f"{CAMARA_API}/proposicoes", params=params, timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar proposições na API da Câmara")
     dados = resp.json().get("dados", [])
@@ -323,7 +323,7 @@ def projetos_do_politico(
 
 
 @router.get("/{external_id}/votacoes")
-def votacoes_do_politico(
+async def votacoes_do_politico(
     external_id: str,
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
@@ -352,7 +352,12 @@ def votacoes_do_politico(
                 ],
             }
 
-    resp = httpx.get(f"{CAMARA_API}/deputados/{external_id}/votacoes", params={"pagina": pagina, "itens": por_pagina}, timeout=10)
+    async with httpx.AsyncClient() as client:  # ✅
+        resp = await client.get(
+            f"{CAMARA_API}/deputados/{external_id}/votacoes",
+            params={"pagina": pagina, "itens": por_pagina},
+            timeout=10,
+        )
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar votações na API da Câmara")
     dados = resp.json().get("dados", [])
@@ -360,12 +365,12 @@ def votacoes_do_politico(
 
 
 @router.post("/{external_id}/salvar")
-def salvar_politico(
+async def salvar_politico(
     external_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    politico = _buscar_ou_criar_politico(external_id, db)
+    politico = await _buscar_ou_criar_politico(external_id, db)  # ✅
     salvo = SavedPolitician(user_id=current_user.id, politician_id=politico.id)
     db.add(salvo)
     try:
