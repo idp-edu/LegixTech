@@ -76,10 +76,10 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(50, ge=1, le=100),  # ← era 20
+    por_pagina: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    limit_busca = por_pagina * 10 if ods is not None else por_pagina  # ← era * 5
+    limit_busca = por_pagina * 10 if ods is not None else por_pagina
 
     local = ProposicaoRepository.listar(
         db,
@@ -90,9 +90,6 @@ async def listar_projetos(
         q=q,
     )
 
-    # ✅ CORREÇÃO PRINCIPAL: só usa banco local se tiver registros suficientes.
-    # Antes: "if local" aceitava qualquer quantidade (até 3-5 registros),
-    # bloqueando o fallback para a API da Câmara indefinidamente.
     MINIMO_LOCAL = 20
     if local and len(local) >= MINIMO_LOCAL:
         resultado = []
@@ -100,17 +97,20 @@ async def listar_projetos(
             temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
             ods_list = ods_classifier.classificar(p.ementa or "", temas)
             item = {
-                "id": p.external_id,
-                "titulo": p.titulo,
-                "ementa": p.ementa,
-                "situacao": p.situacao,
-                "autor": p.autor,
-                "ano": p.ano,
-                "tipo": p.tipo,
-                "temas": temas,
-                "ods": ods_list,
-                "estagio_atual": _inferir_estagio(p.situacao or ""),
-                "estagios": ESTAGIOS,
+                "id":                p.external_id,
+                "external_id":       p.external_id,
+                "titulo":            p.titulo,
+                "ementa":            p.ementa,
+                "situacao":          p.situacao,
+                "autor":             p.autor,
+                "ano":               p.ano,
+                "tipo":              p.tipo,
+                "data_apresentacao": str(p.data_apresentacao) if p.data_apresentacao else None,
+                "urlInteiroTeor":    p.url_texto_oficial,
+                "temas":             temas,
+                "ods":               ods_list,
+                "estagio_atual":     _inferir_estagio(p.situacao or ""),
+                "estagios":          ESTAGIOS,
             }
             if ods is None or any(o["numero"] == ods for o in ods_list):
                 resultado.append(item)
@@ -120,7 +120,7 @@ async def listar_projetos(
         return {"dados": resultado, "total": len(resultado), "pagina": pagina, "fonte": "banco_local"}
 
     # Fallback: busca direto na API da Câmara
-    itens_camara = max(por_pagina, 50)  # ← garante mínimo 50 da Câmara
+    itens_camara = max(por_pagina, 50)
     data_inicio = f"{ano}-01-01" if ano else None
     data_fim    = f"{ano}-12-31" if ano else None
     try:
@@ -155,15 +155,29 @@ async def listar_projetos(
     for p in proposicoes:
         temas = temas_por_id.get(p.get("id"), [])
         ods_list = ods_classifier.classificar(p.get("ementa", ""), temas)
+
+        _status  = p.get("statusProposicao") or {}
+        _autores = p.get("autores") or []
+        _sigla   = p.get("siglaTipo", "")
+        _numero  = p.get("numero", "")
+        _ano     = p.get("ano", "")
+
+        # ✅ sem **p — campos normalizados nunca sobrescritos
         item = {
-            **p,
-            "ods": ods_list,
-            "temas": temas,
-            "estagio_atual": _inferir_estagio(
-                p.get("statusProposicao", {}).get("descricaoSituacao", "")
-                if isinstance(p.get("statusProposicao"), dict) else ""
-            ),
-            "estagios": ESTAGIOS,
+            "id":                p.get("id"),
+            "external_id":       str(p.get("id", "")),
+            "ementa":            p.get("ementa"),
+            "urlInteiroTeor":    p.get("urlInteiroTeor"),
+            "titulo":            f"{_sigla} {_numero} / {_ano}".strip(),
+            "situacao":          _status.get("descricaoSituacao", ""),
+            "autor":             ", ".join(a["nome"] for a in _autores if a.get("nome")) or "Não informado",
+            "tipo":              _sigla,
+            "ano":               _ano,
+            "data_apresentacao": p.get("dataApresentacao"),
+            "ods":               ods_list,
+            "temas":             temas,
+            "estagio_atual":     _inferir_estagio(_status.get("descricaoSituacao", "")),
+            "estagios":          ESTAGIOS,
         }
         if ods is None or any(o["numero"] == ods for o in ods_list):
             resultado.append(item)

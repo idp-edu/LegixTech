@@ -1,5 +1,8 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
@@ -7,7 +10,18 @@ from app.models.saved import SavedProject
 from app.models.project import Project
 from app.services.project_service import buscar_detalhe_projeto
 
+
 router = APIRouter(prefix="/salvos", tags=["Projetos Salvos"])
+
+
+def _parse_date(s):
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "")).date()
+    except Exception:
+        return None
+
 
 @router.get("/")
 def listar_salvos(
@@ -17,7 +31,25 @@ def listar_salvos(
     salvos = db.query(SavedProject).filter(
         SavedProject.user_id == current_user.id
     ).all()
-    return {"projetos": [s.project for s in salvos], "total": len(salvos)}
+
+    projetos = []
+    for s in salvos:
+        if s.project is None:
+            continue
+        p = s.project
+        projetos.append({
+            "id": p.id,
+            "external_id": p.external_id,
+            "titulo": p.titulo,
+            "ementa": p.ementa,
+            "situacao": p.situacao,
+            "autor": p.autor,
+            "ano": p.ano,
+            "tipo": p.tipo,
+        })
+
+    return {"projetos": projetos, "total": len(projetos)}
+
 
 @router.post("/{external_id}")
 async def salvar_projeto(
@@ -30,15 +62,29 @@ async def salvar_projeto(
         dados = await buscar_detalhe_projeto(external_id)
         if not dados:
             raise HTTPException(status_code=404, detail="Projeto não encontrado na API da Câmara")
+
+        _autores = dados.get("autores") or []
+        _status  = dados.get("statusProposicao") or {}
+        _sigla   = dados.get("siglaTipo", "")
+        _numero  = dados.get("numero", "")
+        _ano     = dados.get("ano", "")
+
         projeto = Project(
             external_id=external_id,
-            titulo=dados.get("ementa", "Sem título")[:200],
+            titulo=f"{_sigla} {_numero} / {_ano}".strip() or dados.get("ementa", "Sem título")[:200],
             ementa=dados.get("ementa"),
-            situacao=dados.get("statusProposicao", {}).get("descricaoSituacao"),
-            autor=dados.get("autores", [{}])[0].get("nome") if dados.get("autores") else None,
-            ano=dados.get("ano"),
-            tipo=dados.get("siglaTipo"),
+            situacao=_status.get("descricaoSituacao") or dados.get("situacao"),
+            autor=(
+                ", ".join(a["nome"] for a in _autores if a.get("nome"))
+                or dados.get("autor")
+                or "Não informado"
+            ),
+            ano=_ano or None,
+            tipo=_sigla or dados.get("tipo"),
             url_texto_oficial=dados.get("urlInteiroTeor"),
+            data_apresentacao=_parse_date(
+                dados.get("dataApresentacao") or dados.get("data_apresentacao")
+            ),
         )
         db.add(projeto)
         db.commit()
@@ -55,6 +101,7 @@ async def salvar_projeto(
     db.add(salvo)
     db.commit()
     return {"message": "Projeto salvo com sucesso", "project_id": projeto.id}
+
 
 @router.delete("/{external_id}")
 def remover_salvo(

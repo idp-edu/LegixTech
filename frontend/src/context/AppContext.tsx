@@ -25,6 +25,7 @@ import {
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
+import { fetchSavedProjectIds } from '@/services/savedService';
 
 interface AppContextValue {
   isAuthenticated: boolean;
@@ -118,23 +119,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSavedPoliticians(storedPoliticians);
 
       if (storedToken && storedUser) {
-        const isValid = await validateToken(storedToken);
-        if (isValid) {
-          setTokenState(storedToken);
-          setUserState(storedUser);
-          setAuthMode(storedUser.provider ?? 'password');
-        } else {
-          await clearAuthStorage();
-          setTokenState(null);
-          setUserState(null);
-          setAuthMode(null);
-        }
-      } else {
-        await clearAuthStorage();
-        setTokenState(null);
-        setUserState(null);
-        setAuthMode(null);
-      }
+  const isValid = await validateToken(storedToken);
+  if (isValid) {
+    setTokenState(storedToken);
+    setUserState(storedUser);
+    setAuthMode(storedUser.provider ?? 'password');
+
+    const backendIds = await fetchSavedProjectIds();
+    if (backendIds.length > 0) {
+      setSavedProjects(backendIds);
+      await saveSavedProjects(backendIds);
+    }
+  } else {
+    await clearAuthStorage();
+    setTokenState(null);
+    setUserState(null);
+    setAuthMode(null);
+  }
+} else {
+  await clearAuthStorage();
+  setTokenState(null);
+  setUserState(null);
+  setAuthMode(null);
+}
 
       setIsHydrated(true);
     };
@@ -152,14 +159,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const persistSession = useCallback(async (payload: SessionPayload) => {
-    const nextUser = payload.user ?? null;
-    setAuthMode(payload.mode);
-    setTokenState(payload.token);
-    setUserState(nextUser);
-    await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
-  }, []);
+const persistSession = useCallback(async (payload: SessionPayload) => {
+  const nextUser = payload.user ?? null;
+  setAuthMode(payload.mode);
+  setTokenState(payload.token);
+  setUserState(nextUser);
+  await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
 
+  const backendIds = await fetchSavedProjectIds();
+  if (backendIds.length > 0) {
+    setSavedProjects(backendIds);
+    await saveSavedProjects(backendIds);
+  }
+}, []);
   const loginWithPassword = useCallback(
     async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
       await persistSession({
