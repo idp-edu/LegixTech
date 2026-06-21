@@ -26,10 +26,15 @@ api = FastAPI(
 
 api.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8081",       # Expo dev server (padrão)
+        "http://localhost:19006",      # Expo web
+        "http://localhost:3000",       # Painel admin web (futuro)
+        "http://10.0.2.2:8000",        # Android emulator → backend local
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 api.include_router(auth.router)
