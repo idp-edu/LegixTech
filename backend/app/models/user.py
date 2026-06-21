@@ -13,7 +13,14 @@ class User(Base):
     google_id = Column(String, unique=True, nullable=True)
     password_hash = Column(String, nullable=True)  # <- NOVO
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
 
     saved_projects = relationship("SavedProject", back_populates="user")
     saved_politicians = relationship("SavedPolitician", back_populates="user")
     followed_politicians = relationship("FollowedPolitician", back_populates="user")
+
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

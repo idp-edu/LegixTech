@@ -1,14 +1,18 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from app.core.database import Base
+from datetime import datetime
+
 
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, nullable=False, index=True)
-    project_id = Column(String, nullable=True)       # nullable agora
-    politician_id = Column(String, nullable=True)    # novo: external_id do político
-    tipo = Column(String, nullable=True, default="projeto")  # "projeto" | "politico"
-    message = Column(String, nullable=False)
-    read = Column(Boolean, default=False)
-    created_at = Column(DateTime, server_default=func.now())
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) 
+    title      = Column(String, nullable=False)
+    message    = Column(String, nullable=False)
+    type       = Column(String, default="info")
+    read       = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="notifications")  
