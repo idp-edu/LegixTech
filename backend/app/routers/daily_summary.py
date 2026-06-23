@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, date
+from babel.dates import format_date
 from app.core.database import get_db
 from app.models.project import Project
 import httpx
@@ -17,13 +18,7 @@ FALLBACK_DESTAQUES = [
 @router.get("/")
 async def resumo_diario(db: Session = Depends(get_db)):
     hoje = datetime.now()
-    data_str = hoje.strftime("%-d de %B de %Y").replace(
-        "January", "Janeiro").replace("February", "Fevereiro").replace(
-        "March", "Março").replace("April", "Abril").replace(
-        "May", "Maio").replace("June", "Junho").replace(
-        "July", "Julho").replace("August", "Agosto").replace(
-        "September", "Setembro").replace("October", "Outubro").replace(
-        "November", "Novembro").replace("December", "Dezembro")
+    data_str = format_date(date.today(), format="d 'de' MMMM 'de' yyyy", locale="pt_BR")
 
     # Tenta buscar projetos recentes do banco local
     projetos_recentes = (
