@@ -17,3 +17,5 @@ class ProjectSavedResponse(BaseModel):
 class SavedListResponse(BaseModel):
     projetos: List[ProjectSavedResponse]
     total: int
+class SavedProjectCreate(BaseModel):
+    external_id: str

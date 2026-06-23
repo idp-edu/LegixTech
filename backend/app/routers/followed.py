@@ -46,22 +46,29 @@ async def _get_or_fetch_politician(external_id: str, db: Session) -> Politician:
 
 @router.get("/", response_model=List[FollowedPoliticianResponse])
 def listar_seguindo(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    seguidos = db.query(FollowedPolitician).filter(FollowedPolitician.user_id == current_user.id).all()
-    resultado = []
-    for s in seguidos:
-        p = db.query(Politician).filter(Politician.id == s.politician_id).first()
-        resultado.append(FollowedPoliticianResponse(
+    from sqlalchemy.orm import joinedload   # ← importar aqui ou no topo do arquivo
+
+    seguidos = (
+        db.query(FollowedPolitician)
+        .filter(FollowedPolitician.user_id == current_user.id)
+        .options(joinedload(FollowedPolitician.politician))  # ← 1 JOIN ao invés de N queries
+        .all()
+    )
+
+    return [
+        FollowedPoliticianResponse(
             id=s.id,
             user_id=s.user_id,
             politician_id=s.politician_id,
             created_at=s.created_at,
-            politician_name=p.name if p else None,
-            politician_party=p.party if p else None,
-            politician_state=p.state if p else None,
-            politician_photo_url=p.photo_url if p else None,
-            politician_external_id=p.external_id if p else None,
-        ))
-    return resultado
+            politician_name=s.politician.name if s.politician else None,
+            politician_party=s.politician.party if s.politician else None,
+            politician_state=s.politician.state if s.politician else None,
+            politician_photo_url=s.politician.photo_url if s.politician else None,
+            politician_external_id=s.politician.external_id if s.politician else None,
+        )
+        for s in seguidos
+    ]
 
 
 @router.post("/{external_id}", response_model=FollowedPoliticianResponse, status_code=status.HTTP_201_CREATED)
