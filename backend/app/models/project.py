@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from sqlalchemy import Column, Integer, String, DateTime, Text, Date
 
 class Project(Base):
     __tablename__ = "projects"
@@ -16,9 +15,10 @@ class Project(Base):
     ano = Column(Integer, nullable=True, index=True)
     tipo = Column(String, nullable=True, index=True)
     resumo = Column(Text, nullable=True)
+    headline = Column(String(200), nullable=True)       
     url_texto_oficial = Column(String, nullable=True)
     sincronizado = Column(String, default="camara_api")
-    data_apresentacao  = Column(Date, nullable=True)  
+    data_apresentacao = Column(Date, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

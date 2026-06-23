@@ -79,3 +79,34 @@ def explicar_termo(termo: str) -> dict:
         if k.lower() == termo_lower:
             return {"termo": k, "definicao": v, "encontrado": True}
     return {"termo": termo, "definicao": None, "encontrado": False}
+
+async def gerar_headline(ementa: str, sigla_tipo: str = "", numero: str = "") -> str:
+    """Gera um título jornalístico curto (máx 200 chars) para um projeto de lei."""
+    if not ementa:
+        return ""
+
+    from app.core.config import settings
+    if not settings.GEMINI_API_KEY:
+        return ""
+
+    try:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        prompt = (
+            f"Você é um jornalista político brasileiro. "
+            f"Crie um título jornalístico curto (máximo 120 caracteres, sem ponto final) "
+            f"para o seguinte projeto de lei:\n\n"
+            f"Tipo: {sigla_tipo} {numero}\n"
+            f"Ementa: {ementa}\n\n"
+            f"Responda SOMENTE com o título, sem aspas ou explicações adicionais."
+        )
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.3),
+        )
+        return response.text.strip()[:200]
+    except Exception:
+        return ""

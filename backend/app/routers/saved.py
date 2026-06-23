@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.saved import SavedProject
 from app.models.project import Project
 from app.services.project_service import buscar_detalhe_projeto
+from app.services.resumo_service import gerar_headline
 
 
 router = APIRouter(prefix="/salvos", tags=["Projetos Salvos"])
@@ -42,6 +43,7 @@ def listar_salvos(
             "external_id": p.external_id,
             "titulo": p.titulo,
             "ementa": p.ementa,
+            "headline": p.headline,      
             "situacao": p.situacao,
             "autor": p.autor,
             "ano": p.ano,
@@ -69,6 +71,12 @@ async def salvar_projeto(
         _numero  = dados.get("numero", "")
         _ano     = dados.get("ano", "")
 
+        headline = await gerar_headline(
+            ementa=dados.get("ementa", ""),
+            sigla_tipo=_sigla,
+            numero=str(_numero),
+        )
+
         projeto = Project(
             external_id=external_id,
             titulo=f"{_sigla} {_numero} / {_ano}".strip() or dados.get("ementa", "Sem título")[:200],
@@ -85,6 +93,7 @@ async def salvar_projeto(
             data_apresentacao=_parse_date(
                 dados.get("dataApresentacao") or dados.get("data_apresentacao")
             ),
+            headline=headline,          
         )
         db.add(projeto)
         db.commit()
