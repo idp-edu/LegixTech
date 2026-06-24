@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+
 from app.core.database import get_db
-from app.core.security import verify_token, hash_password, verify_password, create_access_token, get_current_user
+from app.core.security import hash_password, verify_password, create_access_token, get_current_user
 from app.schemas.auth import GoogleLoginRequest, LoginRequest, RegisterRequest, TokenResponse, UpdateProfileRequest
 from app.services.auth_service import login_with_google
 from app.models.user import User
@@ -55,17 +55,8 @@ def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me")
-def get_me(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token não fornecido")
-    token = authorization.replace("Bearer ", "")
-    payload = verify_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Token inválido")
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    return user
+def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 
 @router.patch("/me")
