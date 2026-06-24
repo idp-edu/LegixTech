@@ -7,9 +7,8 @@ import { LogIn } from 'lucide-react-native';
 import { SavedProjects } from '@/components/SavedProjects';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { projectsService } from '@/services/projectsService';
 import { politiciansService } from '@/services/politiciansService';
-import { mapApiListToUiList } from '@/mappers/projectMapper';
+import { fetchSavedProjects } from '@/services/savedService';
 import type { UiProject } from '@/types/project';
 import type { Politician } from '@/data/mockPoliticians';
 
@@ -20,7 +19,6 @@ export default function SavedTab() {
     isGuest,
     isAuthenticated,
     savedProjects,
-    savedPoliticians,
     toggleSaveProject,
     removePolitician,
     showToastMsg,
@@ -29,24 +27,15 @@ export default function SavedTab() {
   const [projects, setProjects] = useState<UiProject[]>([]);
   const [politicians, setPoliticians] = useState<Politician[]>([]);
 
-  // Busca projetos salvos
+  // Busca projetos salvos diretamente do backend via GET /salvos/
   useEffect(() => {
     if (!isAuthenticated) {
       setProjects([]);
       return;
     }
 
-    if (savedProjects.length === 0) {
-      setProjects([]);
-      return;
-    }
-
-    projectsService
-      .listar({ por_pagina: 100 })
-      .then((res) => {
-        const todos = mapApiListToUiList(res?.dados ?? []);
-        setProjects(todos.filter((p) => savedProjects.includes(p.id)));
-      })
+    fetchSavedProjects()
+      .then((lista) => setProjects(lista))
       .catch(() => setProjects([]));
   }, [isAuthenticated, savedProjects]);
 

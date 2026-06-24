@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { registerUnauthorizedHandler } from '@/services/api';
+import { registerUnauthorizedHandler, api } from '@/services/api';
 import {
   clearAuthStorage,
   getToken,
@@ -51,7 +51,7 @@ interface AppContextValue {
   setUser: (user: AuthUser | null) => Promise<void>;
   setToken: (token: string | null) => Promise<void>;
   toggleTheme: () => void;
-  toggleSaveProject: (id: string) => void;
+  toggleSaveProject: (id: string) => Promise<void>;
   addRecentProject: (id: string) => void;
   toggleSavePolitician: (id: string) => void;
   removePolitician: (id: string) => void;
@@ -119,29 +119,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSavedPoliticians(storedPoliticians);
 
       if (storedToken && storedUser) {
-  const isValid = await validateToken(storedToken);
-  if (isValid) {
-    setTokenState(storedToken);
-    setUserState(storedUser);
-    setAuthMode(storedUser.provider ?? 'password');
+        const isValid = await validateToken(storedToken);
+        if (isValid) {
+          setTokenState(storedToken);
+          setUserState(storedUser);
+          setAuthMode(storedUser.provider ?? 'password');
 
-    const backendIds = await fetchSavedProjectIds();
-    if (backendIds.length > 0) {
-      setSavedProjects(backendIds);
-      await saveSavedProjects(backendIds);
-    }
-  } else {
-    await clearAuthStorage();
-    setTokenState(null);
-    setUserState(null);
-    setAuthMode(null);
-  }
-} else {
-  await clearAuthStorage();
-  setTokenState(null);
-  setUserState(null);
-  setAuthMode(null);
-}
+          const backendIds = await fetchSavedProjectIds();
+          if (backendIds.length > 0) {
+            setSavedProjects(backendIds);
+            await saveSavedProjects(backendIds);
+          }
+        } else {
+          await clearAuthStorage();
+          setTokenState(null);
+          setUserState(null);
+          setAuthMode(null);
+        }
+      } else {
+        await clearAuthStorage();
+        setTokenState(null);
+        setUserState(null);
+        setAuthMode(null);
+      }
 
       setIsHydrated(true);
     };
@@ -159,19 +159,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-const persistSession = useCallback(async (payload: SessionPayload) => {
-  const nextUser = payload.user ?? null;
-  setAuthMode(payload.mode);
-  setTokenState(payload.token);
-  setUserState(nextUser);
-  await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
+  const persistSession = useCallback(async (payload: SessionPayload) => {
+    const nextUser = payload.user ?? null;
+    setAuthMode(payload.mode);
+    setTokenState(payload.token);
+    setUserState(nextUser);
+    await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
 
-  const backendIds = await fetchSavedProjectIds();
-  if (backendIds.length > 0) {
-    setSavedProjects(backendIds);
-    await saveSavedProjects(backendIds);
-  }
-}, []);
+    const backendIds = await fetchSavedProjectIds();
+    if (backendIds.length > 0) {
+      setSavedProjects(backendIds);
+      await saveSavedProjects(backendIds);
+    }
+  }, []);
+
   const loginWithPassword = useCallback(
     async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
       await persistSession({
@@ -255,13 +256,24 @@ const persistSession = useCallback(async (payload: SessionPayload) => {
 
   const toggleTheme = useCallback(() => setIsDark((p) => !p), []);
 
-  const toggleSaveProject = useCallback((id: string) => {
-    setSavedProjects((prev) => {
-      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
-      saveSavedProjects(next);
-      return next;
-    });
-  }, []);
+  // Corrigido: sincroniza com o backend antes de atualizar estado local
+  const toggleSaveProject = useCallback(async (id: string) => {
+    const isAlreadySaved = savedProjects.includes(id);
+    try {
+      if (isAlreadySaved) {
+        await api.delete(`/salvos/${id}`);
+      } else {
+        await api.post(`/salvos/${id}`, {});
+      }
+      setSavedProjects((prev) => {
+        const next = isAlreadySaved ? prev.filter((p) => p !== id) : [...prev, id];
+        saveSavedProjects(next);
+        return next;
+      });
+    } catch {
+      // Não atualiza o estado local se o backend falhou
+    }
+  }, [savedProjects]);
 
   const addRecentProject = useCallback((id: string) => {
     setRecentProjects((prev) => {
