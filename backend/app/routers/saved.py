@@ -10,7 +10,7 @@ from app.models.saved import SavedProject
 from app.models.project import Project
 from app.services.project_service import buscar_detalhe_projeto
 from app.services.resumo_service import gerar_headline
-from app.schemas.saved import SavedListResponse  # ← import adicionado
+from app.schemas.saved import SavedListResponse
 
 
 router = APIRouter(prefix="/salvos", tags=["Projetos Salvos"])
@@ -25,7 +25,15 @@ def _parse_date(s):
         return None
 
 
-@router.get("/", response_model=SavedListResponse)  # ← response_model adicionado
+def _montar_titulo(sigla: str, numero, ano, ementa: str) -> str:
+    partes = [str(p).strip() for p in [sigla, numero] if str(p).strip()]
+    base = " ".join(partes)
+    if ano:
+        base = f"{base} / {ano}".strip(" /")
+    return base.strip() or ementa[:200] or "Sem título"
+
+
+@router.get("/", response_model=SavedListResponse)
 def listar_salvos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -80,7 +88,7 @@ async def salvar_projeto(
 
         projeto = Project(
             external_id=external_id,
-            titulo=f"{_sigla} {_numero} / {_ano}".strip() or dados.get("ementa", "Sem título")[:200],
+            titulo=_montar_titulo(_sigla, _numero, _ano, dados.get("ementa", "")),
             ementa=dados.get("ementa"),
             situacao=_status.get("descricaoSituacao") or dados.get("situacao"),
             autor=(
