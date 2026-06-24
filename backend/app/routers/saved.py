@@ -10,6 +10,7 @@ from app.models.saved import SavedProject
 from app.models.project import Project
 from app.services.project_service import buscar_detalhe_projeto
 from app.services.resumo_service import gerar_headline
+from app.schemas.saved import SavedListResponse  # ← import adicionado
 
 
 router = APIRouter(prefix="/salvos", tags=["Projetos Salvos"])
@@ -24,7 +25,7 @@ def _parse_date(s):
         return None
 
 
-@router.get("/")
+@router.get("/", response_model=SavedListResponse)  # ← response_model adicionado
 def listar_salvos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -43,7 +44,7 @@ def listar_salvos(
             "external_id": p.external_id,
             "titulo": p.titulo,
             "ementa": p.ementa,
-            "headline": p.headline,      
+            "headline": p.headline,
             "situacao": p.situacao,
             "autor": p.autor,
             "ano": p.ano,
@@ -93,7 +94,7 @@ async def salvar_projeto(
             data_apresentacao=_parse_date(
                 dados.get("dataApresentacao") or dados.get("data_apresentacao")
             ),
-            headline=headline,          
+            headline=headline,
         )
         db.add(projeto)
         db.commit()
