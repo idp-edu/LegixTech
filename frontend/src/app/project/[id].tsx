@@ -6,7 +6,7 @@ import { ProjectDetail } from '@/components/ProjectDetail';
 import { useApp } from '@/context/AppContext';
 import { projectsService } from '@/services/projectsService';
 import { mapApiProjectToUiProject } from '@/mappers/projectMapper';
-import type { UiProject } from '@/types/project';
+import type { UiProject, TimelineEvent } from '@/types/project';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,9 +23,23 @@ export default function ProjectDetailScreen() {
     if (!projectId) return;
     setLoading(true);
     setError(null);
-    projectsService
-      .detalhar(projectId)
-      .then((data) => setProject(mapApiProjectToUiProject(data)))
+
+    // Busca detalhe e tramitação em paralelo
+    Promise.all([
+      projectsService.detalhar(projectId),
+      projectsService.tramitacao(projectId).catch(() => ({ tramitacoes: [] })),
+    ])
+      .then(([data, tramData]) => {
+        const uiProject = mapApiProjectToUiProject(data);
+
+        // Mapeia tramitações para o formato TimelineEvent
+        const timeline: TimelineEvent[] = (tramData.tramitacoes ?? []).map((t) => ({
+          date: t.data ?? '',
+          label: t.descricao ?? t.etapa ?? '',
+        }));
+
+        setProject({ ...uiProject, timeline });
+      })
       .catch(() => setError('Não foi possível carregar o projeto.'))
       .finally(() => setLoading(false));
   }, [projectId]);

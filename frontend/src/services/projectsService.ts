@@ -66,6 +66,10 @@ export const projectsService = {
   detalhar: (external_id: string): Promise<Project> => {
     return api.get<Project>(`/projetos/${external_id}/`);
   },
+
+  tramitacao: (external_id: string): Promise<{ tramitacoes: { data: string; descricao: string; etapa?: string }[] }> => {
+    return api.get(`/projetos/${external_id}/tramitacao/`);
+  },
 };
 
 export const listarProjetos = projectsService.listar;
