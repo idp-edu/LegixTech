@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from datetime import datetime, date
+from sqlalchemy import or_, and_
+from datetime import datetime, date, timedelta
 from babel.dates import format_date
 from app.core.database import get_db
 from app.models.project import Project
@@ -8,75 +9,84 @@ import httpx
 
 router = APIRouter()
 
-FALLBACK_DESTAQUES = [
-    "Projetos de saúde e educação em tramitação no Congresso",
-    "Comissões analisam propostas de reforma tributária",
-    "Votações previstas para esta semana no Plenário",
-]
-
 
 @router.get("/")
 async def resumo_diario(db: Session = Depends(get_db)):
-    hoje = datetime.now()
-    data_str = format_date(date.today(), format="d 'de' MMMM 'de' yyyy", locale="pt_BR")
+    hoje = date.today()
+    sete_dias_atras = hoje - timedelta(days=7)
+    data_str = format_date(hoje, format="d 'de' MMMM 'de' yyyy", locale="pt_BR")
 
-    # Tenta buscar projetos recentes do banco local
-    projetos_recentes = (
+    # Busca projetos com mudanças recentes: aprovados, em votação ou tramitação atualizada
+    projetos_destaque = (
         db.query(Project)
-        .order_by(Project.id.desc())
-        .limit(3)
+        .filter(
+            or_(
+                Project.situacao.ilike("%aprovad%"),
+                Project.situacao.ilike("%sancion%"),
+                Project.situacao.ilike("%vota%"),
+                Project.situacao.ilike("%pauta%"),
+                Project.situacao.ilike("%tramit%"),
+            )
+        )
+        .order_by(Project.updated_at.desc().nullslast(), Project.created_at.desc())
+        .limit(8)
         .all()
     )
 
-    destaques = []
-    if projetos_recentes:
-        for p in projetos_recentes:
-            ementa = p.ementa or p.titulo or "Projeto sem descrição"
-            destaques.append(ementa[:80] + "..." if len(ementa) > 80 else ementa)
+    # Fallback: se não achar nada no banco, pega os mais recentes da API da Câmara
+    proposicoes = []
+    if projetos_destaque:
+        for p in projetos_destaque:
+            proposicoes.append({
+                "id": p.external_id,
+                "titulo": p.titulo,
+                "ementa": (p.ementa or "")[:120] + ("..." if p.ementa and len(p.ementa) > 120 else ""),
+                "situacao": p.situacao or "Em tramitação",
+                "tipo": p.tipo or "Proposição",
+                "url_camara": f"https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={p.external_id}",
+            })
     else:
-        # Tenta API da Câmara com fallback
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(
                     "https://dadosabertos.camara.leg.br/api/v2/proposicoes",
                     params={
-                        "dataApresentacaoInicio": hoje.strftime("%Y-%m-%d"),
+                        "dataApresentacaoInicio": sete_dias_atras.strftime("%Y-%m-%d"),
                         "ordenarPor": "id",
                         "ordem": "DESC",
-                        "itens": 3,
+                        "itens": 8,
                     },
                     headers={"Accept": "application/json"},
                 )
                 if resp.status_code == 200:
-                    dados = resp.json().get("dados", [])
-                    for p in dados:
-                        ementa = p.get("ementa", "")
-                        if ementa:
-                            destaques.append(ementa[:80] + "..." if len(ementa) > 80 else ementa)
+                    for p in resp.json().get("dados", []):
+                        ementa = p.get("ementa", "") or ""
+                        proposicoes.append({
+                            "id": str(p.get("id", "")),
+                            "titulo": f"{p.get('siglaTipo', '')} {p.get('numero', '')}/{p.get('ano', '')}".strip(),
+                            "ementa": ementa[:120] + ("..." if len(ementa) > 120 else ""),
+                            "situacao": "Em tramitação",
+                            "tipo": p.get("siglaTipo", "Proposição"),
+                            "url_camara": f"https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao={p.get('id', '')}",
+                        })
         except Exception:
             pass
 
-        if not destaques:
-            destaques = FALLBACK_DESTAQUES
-
     # Estatísticas do banco
-    from sqlalchemy import func
-    from app.models.project import Project as P
-
-    total = db.query(P).count()
+    total = db.query(Project).count()
 
     return {
         "data": data_str,
-        "destaques": destaques,
+        "proposicoes": proposicoes,
         "estatisticas": {
-            "em_tramitacao": db.query(P).filter(
-                P.situacao.ilike("%tramit%") | P.situacao.ilike("%comiss%")
+            "em_tramitacao": db.query(Project).filter(
+                or_(Project.situacao.ilike("%tramit%"), Project.situacao.ilike("%comiss%"))
             ).count() or max(total // 2, 0),
-            "aguardando_votacao": db.query(P).filter(
-                P.situacao.ilike("%vota%") | P.situacao.ilike("%pauta%")
+            "aguardando_votacao": db.query(Project).filter(
+                or_(Project.situacao.ilike("%vota%"), Project.situacao.ilike("%pauta%"))
             ).count() or max(total // 4, 0),
-            "aprovados": db.query(P).filter(
-                P.situacao.ilike("%aprovad%") | P.situacao.ilike("%sancion%")
+            "aprovados": db.query(Project).filter(
+                or_(Project.situacao.ilike("%aprovad%"), Project.situacao.ilike("%sancion%"))
             ).count() or max(total // 5, 0),
         },
     }
