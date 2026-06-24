@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useNotifications } from '@/hooks/useNotifications';
 import { authService } from '@/services/authService';
 
 interface ProfileScreenProps {
@@ -51,7 +52,8 @@ export function ProfileScreen({
     dailyDigest: false,
   });
   const { colors } = useTheme();
-  const { user, setUser } = useApp();
+  const { user, setUser, isAuthenticated } = useApp();
+  const { notifications, unreadCount, markAsRead, remove: removeNotification } = useNotifications(isAuthenticated);
 
   const displayName =
     user?.name && user.name.trim().length > 0 ? user.name : 'Usuário';
@@ -102,7 +104,7 @@ export function ProfileScreen({
     {
       icon: Bell,
       label: 'Notificações',
-      description: 'Configure alertas',
+      description: unreadCount > 0 ? `${unreadCount} não lida${unreadCount > 1 ? 's' : ''}` : 'Configure alertas',
       onClick: () => setShowNotifications(!showNotifications),
     },
     { icon: FileText, label: 'Minha Atividade', description: 'Ver histórico' },
@@ -284,6 +286,11 @@ export function ProfileScreen({
                   <Text style={{ fontWeight: '500', color: colors.text }}>{item.label}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.description}</Text>
                 </View>
+                {item.label === 'Notificações' && unreadCount > 0 ? (
+                  <View style={{ backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2, marginRight: 8 }}>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>{unreadCount}</Text>
+                  </View>
+                ) : null}
                 <ChevronRight size={20} color={colors.textMuted} />
               </Pressable>
 
@@ -319,12 +326,56 @@ export function ProfileScreen({
                       />
                     </View>
                   ))}
+
+                  {/* ── Histórico de notificações do backend ─── */}
                   <View style={{ gap: 8 }}>
-                    <Text style={{ fontWeight: '500', color: colors.text }}>Histórico de Notificações</Text>
-                    <View style={{ alignItems: 'center', paddingVertical: 32 }}>
-                      <BellOff size={48} color={colors.textMuted} />
-                      <Text style={{ color: colors.textMuted }}>Nenhuma notificação ainda.</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={{ fontWeight: '500', color: colors.text }}>Histórico de Notificações</Text>
+                      {unreadCount > 0 && (
+                        <View style={{ backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>{unreadCount}</Text>
+                        </View>
+                      )}
                     </View>
+
+                    {notifications.length === 0 ? (
+                      <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                        <BellOff size={48} color={colors.textMuted} />
+                        <Text style={{ color: colors.textMuted }}>Nenhuma notificação ainda.</Text>
+                      </View>
+                    ) : (
+                      notifications.map((n) => (
+                        <View
+                          key={n.id}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'flex-start',
+                            gap: 12,
+                            padding: 12,
+                            borderRadius: 8,
+                            backgroundColor: n.read ? colors.surface : colors.primary + '18',
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                          }}
+                        >
+                          <Bell size={16} color={n.read ? colors.textMuted : colors.primary} style={{ marginTop: 2 }} />
+                          <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={{ fontSize: 14, color: colors.text }}>{n.message}</Text>
+                            <Text style={{ fontSize: 12, color: colors.textMuted }}>{n.created_at?.slice(0, 10)}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {!n.read && (
+                              <Pressable onPress={() => markAsRead(n.id)} hitSlop={8}>
+                                <Text style={{ fontSize: 12, color: colors.primary }}>Lida</Text>
+                              </Pressable>
+                            )}
+                            <Pressable onPress={() => removeNotification(n.id)} hitSlop={8}>
+                              <Text style={{ fontSize: 12, color: '#EF4444' }}>✕</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ))
+                    )}
                   </View>
                 </View>
               )}
