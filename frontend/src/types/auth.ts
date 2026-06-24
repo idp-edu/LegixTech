@@ -4,6 +4,7 @@ export interface AuthUser {
   id?: string;
   name?: string;
   email?: string;
+  picture?: string;      // ← campo adicionado (retornado pelo backend)
   avatarUrl?: string;
   photoUrl?: string;
   provider?: 'password' | 'google';
