@@ -14,6 +14,8 @@ python-multipart==0.0.9
 beautifulsoup4==4.12.3
 google-auth==2.29.0
 google-genai>=1.0.0,<2.0.0
-Babel==2.14.0pytest
-pytest-asyncio
-httpx
+Babel==2.14.0
+
+# Dependências de teste
+pytest==8.2.0
+pytest-asyncio==0.23.6
