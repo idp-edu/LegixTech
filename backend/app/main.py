@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base
 from app.routers import auth, proposicoes, votacoes, partidos, deputados, eventos, frentes, orgaos, blocos, legislaturas, projects, saved, ods, notifications, daily_summary, politicians, followed, chat
 
-# Importa models primeiro para o SQLAlchemy resolver os relacionamentos
 from app.models import user as user_model  # noqa
 from app.models import project as project_model  # noqa
 from app.models import saved as saved_model  # noqa
@@ -27,10 +26,13 @@ api = FastAPI(
 api.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:8081",       # Expo dev server (padrão)
-        "http://localhost:19006",      # Expo web
-        "http://localhost:3000",       # Painel admin web (futuro)
-        "http://10.0.2.2:8000",        # Android emulator → backend local
+        # Desenvolvimento local
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://localhost:3000",
+        "http://10.0.2.2:8000",
+        # Produção
+        "https://legixtech.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
