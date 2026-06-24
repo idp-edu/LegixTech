@@ -101,6 +101,7 @@ async def listar_projetos(
                 "external_id":       p.external_id,
                 "titulo":            p.titulo,
                 "ementa":            p.ementa,
+                "headline":          p.headline,
                 "situacao":          p.situacao,
                 "autor":             p.autor,
                 "ano":               p.ano,
@@ -162,11 +163,11 @@ async def listar_projetos(
         _numero  = p.get("numero", "")
         _ano     = p.get("ano", "")
 
-        # ✅ sem **p — campos normalizados nunca sobrescritos
         item = {
             "id":                p.get("id"),
             "external_id":       str(p.get("id", "")),
             "ementa":            p.get("ementa"),
+            "headline":          None,
             "urlInteiroTeor":    p.get("urlInteiroTeor"),
             "titulo":            f"{_sigla} {_numero} / {_ano}".strip(),
             "situacao":          _status.get("descricaoSituacao", ""),
