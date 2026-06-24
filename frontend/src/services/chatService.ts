@@ -20,22 +20,28 @@ export const chatService = {
         contexto_projeto: contexto_projeto ?? null,
       });
       return response;
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err: unknown) {
+      // ✅ CORRIGIDO: api.ts lança Error com mensagem string, não objetos com .response
+      if (err instanceof Error) {
+        const msg = err.message;
 
-      if (status === 401) {
-        throw new Error('Sessão expirada. Faça login novamente.');
-      }
-      if (status === 422) {
-        throw new Error('Mensagem inválida. Tente reformular.');
-      }
-      if (status >= 500) {
-        throw new Error('O servidor está indisponível. Tente mais tarde.');
+        if (msg.includes('Sessão expirada') || msg.includes('401')) {
+          throw new Error('Sessão expirada. Faça login novamente.');
+        }
+        if (msg.includes('422')) {
+          throw new Error('Mensagem inválida. Tente reformular.');
+        }
+        if (msg.includes('500') || msg.includes('503') || msg.includes('indisponível')) {
+          throw new Error('O servidor está indisponível. Tente mais tarde.');
+        }
+        if (msg.includes('conectar ao servidor') || msg.includes('connect')) {
+          throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão.');
+        }
+
+        throw err;
       }
 
-      throw new Error(
-        'Não foi possível enviar a mensagem. Verifique sua conexão.',
-      );
+      throw new Error('Não foi possível enviar a mensagem. Verifique sua conexão.');
     }
   },
 };

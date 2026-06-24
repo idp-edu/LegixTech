@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session/providers/google';
-import * as Crypto from 'expo-crypto';
 
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { useApp } from '@/context/AppContext';
 import { authService } from '@/services/authService';
+import { getToken, getUser } from '@/services/storage';
+import type { AuthUser } from '@/types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -22,6 +23,7 @@ export default function WelcomeRoute() {
     continueAsGuest,
     isAuthenticated,
     isGuest,
+    showToastMsg,
   } = useApp();
   const [loading, setLoading] = useState(false);
 
@@ -39,8 +41,12 @@ export default function WelcomeRoute() {
   useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
-      if (authentication?.accessToken) {
-        handleGoogleToken(authentication.accessToken);
+      // ✅ CORRIGIDO: usa idToken em vez de accessToken
+      if (authentication?.idToken) {
+        handleGoogleToken(authentication.idToken);
+      } else {
+        Alert.alert('Erro', 'Token do Google não encontrado. Tente novamente.');
+        setLoading(false);
       }
     } else if (response?.type === 'error') {
       Alert.alert('Erro', 'Não foi possível fazer login com Google.');
@@ -48,10 +54,10 @@ export default function WelcomeRoute() {
     }
   }, [response]);
 
-  const handleGoogleToken = async (accessToken: string) => {
+  const handleGoogleToken = async (idToken: string) => {
     setLoading(true);
     try {
-      const result = await authService.loginWithGoogle({ token: accessToken });
+      const result = await authService.loginWithGoogle({ token: idToken });
       await loginWithGoogle({ token: result.access_token, user: result.user });
     } catch (err: any) {
       Alert.alert('Erro ao entrar com Google', err?.message ?? 'Tente novamente.');
@@ -64,7 +70,26 @@ export default function WelcomeRoute() {
     type: 'google' | 'biometric' | 'guest' | 'password' | 'register',
     credentials?: { email: string; password: string; name?: string },
   ) => {
-    if (type === 'guest' || type === 'biometric') {
+    // ✅ CORRIGIDO: biometria restaura sessão salva em vez de entrar como convidado
+    if (type === 'biometric') {
+      setLoading(true);
+      try {
+        const savedToken = await getToken();
+        const savedUser = await getUser<AuthUser>();
+        if (savedToken && savedUser) {
+          await loginWithPassword({ token: savedToken, user: savedUser });
+        } else {
+          showToastMsg('Faça login uma vez para ativar a biometria.');
+        }
+      } catch {
+        showToastMsg('Não foi possível autenticar com biometria.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (type === 'guest') {
       continueAsGuest();
       return;
     }
