@@ -1,7 +1,15 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.database import Base
-from app.routers import auth, proposicoes, votacoes, partidos, deputados, eventos, frentes, orgaos, blocos, legislaturas, projects, saved, ods, notifications, daily_summary, politicians, followed, chat
+from app.routers import (
+    auth, proposicoes, votacoes, partidos, deputados, eventos,
+    frentes, orgaos, blocos, legislaturas, projects, saved, ods,
+    notifications, daily_summary, politicians, followed, chat
+)
 
 from app.models import user as user_model  # noqa
 from app.models import project as project_model  # noqa
@@ -16,27 +24,51 @@ from app.models.politician_vote import PoliticianVote  # noqa
 from app.models.saved_politician import SavedPolitician  # noqa
 from app.models.followed_politician import FollowedPolitician  # noqa
 
+logger = logging.getLogger(__name__)
+
+
+def run_migrations():
+    """Roda alembic upgrade head ao iniciar — funciona sem shell no Render."""
+    try:
+        from alembic.config import Config
+        from alembic import command
+        import os
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alembic_cfg = Config(os.path.join(base_dir, "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
+        command.upgrade(alembic_cfg, "head")
+        logger.info("✅ Migrations aplicadas com sucesso.")
+    except Exception as e:
+        logger.error(f"❌ Erro ao rodar migrations: {e}")
+        # Não derruba o servidor — loga e continua
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Executa tarefas de startup antes de aceitar requisições."""
+    run_migrations()
+    yield
+
 
 api = FastAPI(
     title="LegixTech API",
     description="Backend do aplicativo de monitoramento legislativo com classificação ODS",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 api.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        # Desenvolvimento local — todas as portas usadas pelo Expo Web
         "http://localhost:8081",
         "http://localhost:19006",
         "http://localhost:19000",
         "http://localhost:3000",
         "http://127.0.0.1:8081",
         "http://127.0.0.1:19006",
-        # Emulador Android (acessa a máquina host via 10.0.2.2)
         "http://10.0.2.2:8081",
         "http://10.0.2.2:19006",
-        # Produção
         "https://legixtech.onrender.com",
     ],
     allow_credentials=True,
@@ -63,6 +95,7 @@ api.include_router(orgaos.router)
 api.include_router(blocos.router)
 api.include_router(legislaturas.router)
 
+
 @api.get("/")
 def root():
     return {
@@ -76,9 +109,10 @@ def root():
             "ods": "/ods",
             "notificacoes": "/notifications",
             "resumo_diario": "/daily-summary",
-            "docs": "/docs"
-        }
+            "docs": "/docs",
+        },
     }
+
 
 # alias para compatibilidade com uvicorn e Render
 app = api
