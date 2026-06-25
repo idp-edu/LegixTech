@@ -69,6 +69,9 @@ def get_estatisticas(db: Session = Depends(get_db)):
 
 # ─── LISTAGEM ────────────────────────────────────────────────────────────────
 
+# Cap máximo absoluto de registros buscados no banco para filtro ODS
+_ODS_BUSCA_CAP = 200
+
 @router.get("/")
 async def listar_projetos(
     q: Optional[str] = Query(None, description="Busca por palavra-chave"),
@@ -76,14 +79,22 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(50, ge=1, le=100),
+    por_pagina: int = Query(50, ge=1, le=50),  # ✅ máximo baixado de 100 para 50
     db: Session = Depends(get_db),
 ):
-    limit_busca = por_pagina * 10 if ods is not None else por_pagina
+    # ✅ Cap fixo em vez de multiplicador ilimitado
+    if ods is not None:
+        # Para filtro ODS: busca um lote fixo de no máximo 200 registros
+        # e pagina sobre eles em memória — seguro e previsível
+        limit_busca = _ODS_BUSCA_CAP
+        skip_busca = 0  # sempre busca do início, pagina em memória
+    else:
+        limit_busca = por_pagina
+        skip_busca = (pagina - 1) * por_pagina
 
     local = ProposicaoRepository.listar(
         db,
-        skip=(pagina - 1) * por_pagina,
+        skip=skip_busca,
         limit=limit_busca,
         tipo=tipo,
         ano=ano,
@@ -115,10 +126,27 @@ async def listar_projetos(
             }
             if ods is None or any(o["numero"] == ods for o in ods_list):
                 resultado.append(item)
-                if len(resultado) >= por_pagina:
-                    break
 
-        return {"dados": resultado, "total": len(resultado), "pagina": pagina, "fonte": "banco_local"}
+        # ✅ Pagina sobre o resultado filtrado em memória
+        if ods is not None:
+            inicio = (pagina - 1) * por_pagina
+            fim = inicio + por_pagina
+            pagina_resultado = resultado[inicio:fim]
+            return {
+                "dados": pagina_resultado,
+                "total": len(resultado),
+                "pagina": pagina,
+                "por_pagina": por_pagina,
+                "fonte": "banco_local",
+            }
+
+        return {
+            "dados": resultado,
+            "total": len(resultado),
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "fonte": "banco_local",
+        }
 
     # Fallback: busca direto na API da Câmara
     itens_camara = max(por_pagina, 50)
@@ -187,10 +215,10 @@ async def listar_projetos(
         "dados": resultado,
         "total": len(resultado),
         "pagina": pagina,
+        "por_pagina": por_pagina,
         "fonte": "camara_api",
         "erro_upstream": raw.get("erro_upstream"),
     }
-
 
 # ─── ENDPOINTS FIXOS (antes do /{external_id}) ───────────────────────────────
 
