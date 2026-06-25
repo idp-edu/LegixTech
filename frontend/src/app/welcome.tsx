@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session/providers/google';
 
@@ -41,15 +40,14 @@ export default function WelcomeRoute() {
   useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
-      // ✅ CORRIGIDO: usa idToken em vez de accessToken
       if (authentication?.idToken) {
         handleGoogleToken(authentication.idToken);
       } else {
-        Alert.alert('Erro', 'Token do Google não encontrado. Tente novamente.');
+        showToastMsg('Token do Google não encontrado. Tente novamente.');
         setLoading(false);
       }
     } else if (response?.type === 'error') {
-      Alert.alert('Erro', 'Não foi possível fazer login com Google.');
+      showToastMsg('Não foi possível fazer login com Google.');
       setLoading(false);
     }
   }, [response]);
@@ -60,7 +58,7 @@ export default function WelcomeRoute() {
       const result = await authService.loginWithGoogle({ token: idToken });
       await loginWithGoogle({ token: result.access_token, user: result.user });
     } catch (err: any) {
-      Alert.alert('Erro ao entrar com Google', err?.message ?? 'Tente novamente.');
+      showToastMsg(err?.message ?? 'Erro ao entrar com Google. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +68,6 @@ export default function WelcomeRoute() {
     type: 'google' | 'biometric' | 'guest' | 'password' | 'register',
     credentials?: { email: string; password: string; name?: string },
   ) => {
-    // ✅ CORRIGIDO: biometria restaura sessão salva em vez de entrar como convidado
     if (type === 'biometric') {
       setLoading(true);
       try {
@@ -97,10 +94,10 @@ export default function WelcomeRoute() {
     if (type === 'password' && credentials) {
       setLoading(true);
       try {
-        const response = await authService.loginWithPassword(credentials);
-        await loginWithPassword({ token: response.access_token, user: response.user });
+        const res = await authService.loginWithPassword(credentials);
+        await loginWithPassword({ token: res.access_token, user: res.user });
       } catch (err: any) {
-        Alert.alert('Erro ao entrar', err?.message ?? 'Verifique seu e-mail e senha.');
+        showToastMsg(err?.message ?? 'E-mail ou senha incorretos.');
       } finally {
         setLoading(false);
       }
@@ -110,14 +107,14 @@ export default function WelcomeRoute() {
     if (type === 'register' && credentials) {
       setLoading(true);
       try {
-        const response = await authService.registerWithPassword({
+        const res = await authService.registerWithPassword({
           name: credentials.name ?? '',
           email: credentials.email,
           password: credentials.password,
         });
-        await registerWithPassword({ token: response.access_token, user: response.user });
+        await registerWithPassword({ token: res.access_token, user: res.user });
       } catch (err: any) {
-        Alert.alert('Erro ao criar conta', err?.message ?? 'Verifique os dados e tente novamente.');
+        showToastMsg(err?.message ?? 'Erro ao criar conta. Tente novamente.');
       } finally {
         setLoading(false);
       }
