@@ -1,7 +1,9 @@
+# backend/app/routers/chat.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from app.core.security import get_optional_user
+from app.core.security import get_current_user   
 from app.models.user import User
 from app.services.chat_service import gerar_resposta
 
@@ -18,7 +20,10 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/", response_model=ChatResponse)
-def chat(body: ChatRequest, current_user: Optional[User] = Depends(get_optional_user)):
+def chat(
+    body: ChatRequest,
+    current_user: User = Depends(get_current_user), 
+):
     try:
         return ChatResponse(resposta=gerar_resposta(body.mensagem, body.contexto_projeto))
     except Exception as e:

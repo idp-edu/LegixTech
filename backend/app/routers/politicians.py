@@ -15,6 +15,8 @@ from app.models.user import User
 from app.schemas.politician import PoliticianResponse, PoliticianListResponse
 from app.services import politician_notification_service
 
+_HTTP_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
 router = APIRouter(prefix="/politicos", tags=["Políticos"])
 
 CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -99,7 +101,7 @@ def _db_listar_cache(
 async def _api_buscar_senador(external_id: str) -> Politician:
     codigo = external_id.replace("sen_", "")
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             resp = await client.get(
                 f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
                 headers={"Accept": "application/json"},
@@ -136,7 +138,7 @@ async def _api_buscar_senador(external_id: str) -> Politician:
 
 
 async def _api_buscar_deputado(external_id: str) -> Politician:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
@@ -172,7 +174,7 @@ async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician
 
 async def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None) -> list:
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             resp = await client.get(
                 SENADO_API,
                 headers={"Accept": "application/json"},
@@ -277,7 +279,7 @@ async def listar_politicos(
     if estado:
         params["siglaUf"] = estado.upper()
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados", params=params, timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar API da Câmara")
@@ -383,7 +385,7 @@ async def projetos_do_politico(
         return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": 0, "projetos": []}
 
     params = {"idDeputadoAutor": external_id, "pagina": pagina, "itens": por_pagina}
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/proposicoes", params=params, timeout=10)
     if resp.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao consultar proposições na API da Câmara")
@@ -415,7 +417,7 @@ async def votacoes_do_politico(
                 ],
             }
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(
             f"{CAMARA_API}/deputados/{external_id}/votacoes",
             params={"pagina": pagina, "itens": por_pagina},
