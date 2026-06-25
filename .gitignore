@@ -210,3 +210,6 @@ backend/.env
 backend/legixtech.db
 backend/venv/
 backend/.env
+backend/backend/
+backend/bcrypt
+backend/test.db
