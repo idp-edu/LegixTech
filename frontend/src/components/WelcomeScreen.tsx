@@ -26,12 +26,40 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState('');
+
+  const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleSubmit = () => {
-    if (mode === 'login') {
-      onLogin('password', { email, password });
-    } else if (mode === 'register') {
+    setFormError('');
+
+    if (mode === 'register') {
+      if (!name.trim() || name.trim().length < 2) {
+        setFormError('Nome deve ter pelo menos 2 caracteres.');
+        return;
+      }
+      if (!isValidEmail(email)) {
+        setFormError('Digite um e-mail válido.');
+        return;
+      }
+      if (password.length < 6) {
+        setFormError('A senha deve ter pelo menos 6 caracteres.');
+        return;
+      }
       onLogin('register', { email, password, name });
+      return;
+    }
+
+    if (mode === 'login') {
+      if (!isValidEmail(email)) {
+        setFormError('Digite um e-mail válido.');
+        return;
+      }
+      if (!password) {
+        setFormError('Digite sua senha.');
+        return;
+      }
+      onLogin('password', { email, password });
     }
   };
 
@@ -39,7 +67,15 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
     setName('');
     setEmail('');
     setPassword('');
+    setFormError('');
   };
+
+  const ErrorBox = () =>
+    formError ? (
+      <View style={{ backgroundColor: '#FEE2E2', borderRadius: 8, padding: 12 }}>
+        <Text style={{ color: '#991B1B', fontSize: 13 }}>{formError}</Text>
+      </View>
+    ) : null;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -105,13 +141,16 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                 <Text className="font-medium text-foreground">Entrar com Google</Text>
               </Pressable>
 
-              <Pressable
-                onPress={() => onLogin('biometric')}
-                className="min-h-14 w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-border bg-card px-6 py-4 active:border-primary"
-              >
-                <Fingerprint size={22} color="#1e40af" />
-                <Text className="font-medium text-foreground">Entrar com Biometria</Text>
-              </Pressable>
+              {/* ✅ Biometria oculta no web — AsyncStorage não funciona no browser */}
+              {Platform.OS !== 'web' && (
+                <Pressable
+                  onPress={() => onLogin('biometric')}
+                  className="min-h-14 w-full flex-row items-center justify-center gap-3 rounded-xl border-2 border-border bg-card px-6 py-4 active:border-primary"
+                >
+                  <Fingerprint size={22} color="#1e40af" />
+                  <Text className="font-medium text-foreground">Entrar com Biometria</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 onPress={() => onLogin('guest')}
@@ -143,7 +182,7 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                     placeholder="seu@email.com"
                     placeholderTextColor="#9ca3af"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(v) => { setEmail(v); setFormError(''); }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -160,11 +199,13 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                     placeholder="••••••••"
                     placeholderTextColor="#9ca3af"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(v) => { setPassword(v); setFormError(''); }}
                     secureTextEntry
                   />
                 </View>
               </View>
+
+              <ErrorBox />
 
               <Pressable
                 onPress={handleSubmit}
@@ -180,9 +221,7 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
               </Pressable>
 
               <Pressable onPress={() => { resetForm(); setMode('options'); }}>
-                <Text className="text-center text-sm text-muted-foreground">
-                  ← Voltar
-                </Text>
+                <Text className="text-center text-sm text-muted-foreground">← Voltar</Text>
               </Pressable>
 
               <Pressable onPress={() => { resetForm(); setMode('register'); }}>
@@ -208,7 +247,7 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                     placeholder="Seu nome"
                     placeholderTextColor="#9ca3af"
                     value={name}
-                    onChangeText={setName}
+                    onChangeText={(v) => { setName(v); setFormError(''); }}
                     autoCapitalize="words"
                   />
                 </View>
@@ -223,7 +262,7 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                     placeholder="seu@email.com"
                     placeholderTextColor="#9ca3af"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(v) => { setEmail(v); setFormError(''); }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -240,11 +279,13 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
                     placeholder="••••••••"
                     placeholderTextColor="#9ca3af"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(v) => { setPassword(v); setFormError(''); }}
                     secureTextEntry
                   />
                 </View>
               </View>
+
+              <ErrorBox />
 
               <Pressable
                 onPress={handleSubmit}
@@ -260,9 +301,7 @@ export function WelcomeScreen({ onLogin, loading = false }: WelcomeScreenProps) 
               </Pressable>
 
               <Pressable onPress={() => { resetForm(); setMode('options'); }}>
-                <Text className="text-center text-sm text-muted-foreground">
-                  ← Voltar
-                </Text>
+                <Text className="text-center text-sm text-muted-foreground">← Voltar</Text>
               </Pressable>
 
               <Pressable onPress={() => { resetForm(); setMode('login'); }}>

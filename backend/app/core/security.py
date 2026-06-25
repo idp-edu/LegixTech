@@ -1,11 +1,20 @@
+# backend/app/core/security.py
+
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 import bcrypt
-from fastapi import Depends, HTTPException, Header
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.core.config import settings
 from app.core.database import get_db
+
+# oauth2_scheme obrigatório — lança 401 automaticamente se token ausente
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# oauth2_scheme_optional — retorna None se token ausente (não lança erro)
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -31,10 +40,7 @@ def verify_token(token: str):
         return None
 
 
-def get_current_user(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token não fornecido")
-    token = authorization.replace("Bearer ", "")
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     payload = verify_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token inválido")
@@ -46,12 +52,11 @@ def get_current_user(authorization: Optional[str] = Header(None), db: Session = 
 
 
 def get_optional_user(
-    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Depends(oauth2_scheme_optional),
     db: Session = Depends(get_db)
 ) -> Optional[object]:
-    if not authorization or not authorization.startswith("Bearer "):
+    if not token:
         return None
-    token = authorization.replace("Bearer ", "")
     payload = verify_token(token)
     if not payload:
         return None

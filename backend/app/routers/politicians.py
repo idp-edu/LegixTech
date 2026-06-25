@@ -1,3 +1,6 @@
+# backend/app/routers/politicians.py
+
+import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -13,6 +16,10 @@ from app.models.user import User
 from app.schemas.politician import PoliticianResponse, PoliticianListResponse
 from app.services import politician_notification_service
 
+logger = logging.getLogger(__name__)
+
+_HTTP_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
 router = APIRouter(prefix="/politicos", tags=["Políticos"])
 
 CAMARA_API = "https://dadosabertos.camara.leg.br/api/v2"
@@ -21,61 +28,129 @@ SENADO_API = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual"
 _CACHE_MIN_DEPUTADOS = 500
 
 
-async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
-    politico = db.query(Politician).filter(Politician.external_id == external_id).first()
-    if politico:
-        return politico
+# ─── FUNÇÕES DE BANCO (síncronas — não bloqueiam o event loop) ────────────────
 
-    if external_id.startswith("sen_"):
-        codigo = external_id.replace("sen_", "")
-        try:
-            async with httpx.AsyncClient() as client:  # ✅
-                resp = await client.get(
-                    f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
-                    headers={"Accept": "application/json"},
-                    timeout=15,
-                )
-            if resp.status_code != 200:
-                raise HTTPException(status_code=404, detail="Senador não encontrado")
+def _db_buscar_politico(db: Session, external_id: str) -> Optional[Politician]:
+    return db.query(Politician).filter(Politician.external_id == external_id).first()
 
-            dados = resp.json()
-            detalhe = (
-                dados.get("DetalheParlamentar", {})
-                .get("Parlamentar", {})
-                .get("IdentificacaoParlamentar", {})
-            )
-            mandato = (
-                dados.get("DetalheParlamentar", {})
-                .get("Parlamentar", {})
-                .get("MandatoAtual", {})
-            )
-            politico = Politician(
-                external_id=external_id,
-                name=detalhe.get("NomeParlamentar", ""),
-                party=detalhe.get("SiglaPartidoParlamentar", ""),
-                state=mandato.get("UfParlamentar", "") or detalhe.get("UfParlamentar", ""),
-                house="Senado",
-                photo_url=detalhe.get("UrlFotoParlamentar", ""),
-                bio=None,
-                email=detalhe.get("EmailParlamentar", ""),
-            )
-            db.add(politico)
-            db.commit()
-            db.refresh(politico)
-            return politico
 
-        except HTTPException:
-            raise
-        except Exception:
+def _db_salvar_politico(db: Session, politico: Politician) -> Politician:
+    db.add(politico)
+    db.commit()
+    db.refresh(politico)
+    return politico
+
+
+def _db_get_votos(db: Session, politician_id: int) -> list:
+    return db.query(PoliticianVote).filter(PoliticianVote.politician_id == politician_id).all()
+
+
+def _db_get_votos_paginado(db: Session, politician_id: int, skip: int, limit: int) -> list:
+    return (
+        db.query(PoliticianVote)
+        .filter(PoliticianVote.politician_id == politician_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def _db_get_salvos(db: Session, user_id: int) -> list:
+    return db.query(SavedPolitician).filter(SavedPolitician.user_id == user_id).all()
+
+
+def _db_get_salvo(db: Session, user_id: int, politician_id: int) -> Optional[SavedPolitician]:
+    return (
+        db.query(SavedPolitician)
+        .filter(
+            SavedPolitician.user_id == user_id,
+            SavedPolitician.politician_id == politician_id,
+        )
+        .first()
+    )
+
+
+def _db_cache_count(db: Session, casa: Optional[str] = None) -> int:
+    q = db.query(Politician)
+    if casa:
+        q = q.filter(Politician.house == casa)
+    return q.count()
+
+
+def _db_listar_cache(
+    db: Session,
+    casa: Optional[str],
+    nome: Optional[str],
+    partido: Optional[str],
+    estado: Optional[str],
+    skip: int,
+    limit: int,
+) -> tuple[int, list]:
+    q = db.query(Politician)
+    if casa:
+        q = q.filter(Politician.house == casa)
+    if nome:
+        q = q.filter(Politician.name.ilike(f"%{nome}%"))
+    if partido:
+        q = q.filter(Politician.party.ilike(f"%{partido}%"))
+    if estado:
+        q = q.filter(Politician.state == estado.upper())
+    total = q.count()
+    return total, q.offset(skip).limit(limit).all()
+
+
+# ─── FUNÇÕES DE API EXTERNA (assíncronas) ────────────────────────────────────
+
+async def _api_buscar_senador(external_id: str) -> Politician:
+    codigo = external_id.replace("sen_", "")
+    try:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+            resp = await client.get(
+                f"https://legis.senado.leg.br/dadosabertos/senador/{codigo}",
+                headers={"Accept": "application/json"},
+                timeout=15,
+            )
+        if resp.status_code != 200:
+            logger.warning(f"Senador {external_id} não encontrado na API (status={resp.status_code})")
             raise HTTPException(status_code=404, detail="Senador não encontrado")
 
-    async with httpx.AsyncClient() as client:  # ✅
+        dados = resp.json()
+        detalhe = (
+            dados.get("DetalheParlamentar", {})
+            .get("Parlamentar", {})
+            .get("IdentificacaoParlamentar", {})
+        )
+        mandato = (
+            dados.get("DetalheParlamentar", {})
+            .get("Parlamentar", {})
+            .get("MandatoAtual", {})
+        )
+        return Politician(
+            external_id=external_id,
+            name=detalhe.get("NomeParlamentar", ""),
+            party=detalhe.get("SiglaPartidoParlamentar", ""),
+            state=mandato.get("UfParlamentar", "") or detalhe.get("UfParlamentar", ""),
+            house="Senado",
+            photo_url=detalhe.get("UrlFotoParlamentar", ""),
+            bio=None,
+            email=detalhe.get("EmailParlamentar", ""),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao buscar senador {external_id} na API do Senado: {e}")
+        raise HTTPException(status_code=404, detail="Senador não encontrado")
+
+
+async def _api_buscar_deputado(external_id: str) -> Politician:
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
+        logger.warning(f"Deputado {external_id} não encontrado na API da Câmara (status={resp.status_code})")
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
 
     dados = resp.json().get("dados", {})
-    politico = Politician(
+    return Politician(
         external_id=str(dados.get("id")),
         name=dados.get("nomeCivil") or dados.get("nome", ""),
         party=dados.get("ultimoStatus", {}).get("siglaPartido"),
@@ -85,21 +160,31 @@ async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician
         bio=dados.get("escolaridade"),
         email=dados.get("ultimoStatus", {}).get("email"),
     )
-    db.add(politico)
-    db.commit()
-    db.refresh(politico)
-    return politico
+
+
+async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
+    politico = _db_buscar_politico(db, external_id)
+    if politico:
+        return politico
+
+    if external_id.startswith("sen_"):
+        politico = await _api_buscar_senador(external_id)
+    else:
+        politico = await _api_buscar_deputado(external_id)
+
+    return _db_salvar_politico(db, politico)
 
 
 async def _buscar_senadores(nome: str = None, partido: str = None, estado: str = None) -> list:
     try:
-        async with httpx.AsyncClient() as client:  # ✅
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
             resp = await client.get(
                 SENADO_API,
                 headers={"Accept": "application/json"},
                 timeout=15,
             )
         if resp.status_code != 200:
+            logger.warning(f"API do Senado retornou status={resp.status_code}")
             return []
 
         dados = resp.json()
@@ -135,9 +220,12 @@ async def _buscar_senadores(nome: str = None, partido: str = None, estado: str =
             ))
 
         return resultado
-    except Exception:
+    except Exception as e:
+        logger.error(f"Erro ao buscar lista de senadores: {e}")
         return []
 
+
+# ─── ROTAS ───────────────────────────────────────────────────────────────────
 
 @router.get("/", response_model=PoliticianListResponse)
 async def listar_politicos(
@@ -149,24 +237,16 @@ async def listar_politicos(
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    cache_query = db.query(Politician)
-    if casa:
-        cache_query = cache_query.filter(Politician.house == casa)
-
-    total_cache = cache_query.count()
+    total_cache = _db_cache_count(db, casa)
     usar_cache = total_cache >= _CACHE_MIN_DEPUTADOS
 
     if usar_cache:
-        q = cache_query
-        if nome:
-            q = q.filter(Politician.name.ilike(f"%{nome}%"))
-        if partido:
-            q = q.filter(Politician.party.ilike(f"%{partido}%"))
-        if estado:
-            q = q.filter(Politician.state == estado.upper())
-
-        total_filtrado = q.count()
-        politicos = q.offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+        logger.info(f"Listando políticos do cache (total={total_cache}, casa={casa})")
+        total_filtrado, politicos = _db_listar_cache(
+            db, casa, nome, partido, estado,
+            skip=(pagina - 1) * por_pagina,
+            limit=por_pagina,
+        )
         return PoliticianListResponse(
             total=total_filtrado,
             pagina=pagina,
@@ -187,7 +267,7 @@ async def listar_politicos(
         )
 
     if casa == "Senado":
-        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)  # ✅
+        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)
         inicio = (pagina - 1) * por_pagina
         return PoliticianListResponse(
             total=len(senadores),
@@ -205,9 +285,10 @@ async def listar_politicos(
     if estado:
         params["siglaUf"] = estado.upper()
 
-    async with httpx.AsyncClient() as client:  # ✅
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados", params=params, timeout=10)
     if resp.status_code != 200:
+        logger.error(f"API da Câmara retornou status={resp.status_code} ao listar deputados")
         raise HTTPException(status_code=502, detail="Erro ao consultar API da Câmara")
 
     dados_camara = resp.json().get("dados", [])
@@ -224,7 +305,7 @@ async def listar_politicos(
     ]
 
     if not casa or casa.lower() == "todos":
-        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)  # ✅
+        senadores = await _buscar_senadores(nome=nome, partido=partido, estado=estado)
         todos = resultados_camara + senadores
         inicio = (pagina - 1) * por_pagina
         return PoliticianListResponse(
@@ -244,16 +325,13 @@ async def listar_politicos(
     )
 
 
+# ✅ salvos/meus ANTES de /{external_id}
 @router.get("/salvos/meus")
 def meus_politicos_salvos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    salvos = (
-        db.query(SavedPolitician)
-        .filter(SavedPolitician.user_id == current_user.id)
-        .all()
-    )
+    salvos = _db_get_salvos(db, current_user.id)
     return {
         "total": len(salvos),
         "politicos": [
@@ -273,9 +351,9 @@ def meus_politicos_salvos(
 
 @router.get("/{external_id}")
 async def perfil_politico(external_id: str, db: Session = Depends(get_db)):
-    p = await _buscar_ou_criar_politico(external_id, db)  # ✅
+    p = await _buscar_ou_criar_politico(external_id, db)
 
-    votos_db = db.query(PoliticianVote).filter(PoliticianVote.politician_id == p.id).all()
+    votos_db = _db_get_votos(db, p.id)
     total = len(votos_db)
     favor = sum(1 for v in votos_db if v.vote == "Sim")
     contra = sum(1 for v in votos_db if v.vote == "Não")
@@ -314,9 +392,10 @@ async def projetos_do_politico(
         return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": 0, "projetos": []}
 
     params = {"idDeputadoAutor": external_id, "pagina": pagina, "itens": por_pagina}
-    async with httpx.AsyncClient() as client:  # ✅
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/proposicoes", params=params, timeout=10)
     if resp.status_code != 200:
+        logger.error(f"Erro ao buscar projetos do deputado {external_id} (status={resp.status_code})")
         raise HTTPException(status_code=502, detail="Erro ao consultar proposições na API da Câmara")
     dados = resp.json().get("dados", [])
     return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": len(dados), "projetos": dados}
@@ -332,15 +411,9 @@ async def votacoes_do_politico(
     if external_id.startswith("sen_"):
         return {"external_id": external_id, "fonte": "n/a", "total": 0, "votacoes": []}
 
-    politico = db.query(Politician).filter(Politician.external_id == external_id).first()
+    politico = _db_buscar_politico(db, external_id)
     if politico:
-        votos = (
-            db.query(PoliticianVote)
-            .filter(PoliticianVote.politician_id == politico.id)
-            .offset((pagina - 1) * por_pagina)
-            .limit(por_pagina)
-            .all()
-        )
+        votos = _db_get_votos_paginado(db, politico.id, (pagina - 1) * por_pagina, por_pagina)
         if votos:
             return {
                 "external_id": external_id,
@@ -352,13 +425,14 @@ async def votacoes_do_politico(
                 ],
             }
 
-    async with httpx.AsyncClient() as client:  # ✅
+    async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(
             f"{CAMARA_API}/deputados/{external_id}/votacoes",
             params={"pagina": pagina, "itens": por_pagina},
             timeout=10,
         )
     if resp.status_code != 200:
+        logger.error(f"Erro ao buscar votações do deputado {external_id} (status={resp.status_code})")
         raise HTTPException(status_code=502, detail="Erro ao consultar votações na API da Câmara")
     dados = resp.json().get("dados", [])
     return {"external_id": external_id, "fonte": "camara_api", "total": len(dados), "votacoes": dados}
@@ -370,14 +444,16 @@ async def salvar_politico(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    politico = await _buscar_ou_criar_politico(external_id, db)  # ✅
+    politico = await _buscar_ou_criar_politico(external_id, db)
     salvo = SavedPolitician(user_id=current_user.id, politician_id=politico.id)
     db.add(salvo)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
+        logger.warning(f"Usuário {current_user.id} tentou favoritar político {external_id} já salvo")
         raise HTTPException(status_code=400, detail="Político já favoritado")
+    logger.info(f"Usuário {current_user.id} favoritou político {external_id}")
     return {"message": f"{politico.name} adicionado aos favoritos"}
 
 
@@ -387,18 +463,15 @@ def remover_politico_salvo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    politico = db.query(Politician).filter(Politician.external_id == external_id).first()
+    politico = _db_buscar_politico(db, external_id)
     if not politico:
         raise HTTPException(status_code=404, detail="Político não encontrado")
-    salvo = (
-        db.query(SavedPolitician)
-        .filter(SavedPolitician.user_id == current_user.id, SavedPolitician.politician_id == politico.id)
-        .first()
-    )
+    salvo = _db_get_salvo(db, current_user.id, politico.id)
     if not salvo:
         raise HTTPException(status_code=404, detail="Político não está nos favoritos")
     db.delete(salvo)
     db.commit()
+    logger.info(f"Usuário {current_user.id} removeu político {external_id} dos favoritos")
     return {"message": f"{politico.name} removido dos favoritos"}
 
 
