@@ -26,17 +26,22 @@ api = FastAPI(
 api.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        # Desenvolvimento local
+        # Desenvolvimento local — todas as portas usadas pelo Expo Web
         "http://localhost:8081",
         "http://localhost:19006",
+        "http://localhost:19000",
         "http://localhost:3000",
-        "http://10.0.2.2:8000",
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:19006",
+        # Emulador Android (acessa a máquina host via 10.0.2.2)
+        "http://10.0.2.2:8081",
+        "http://10.0.2.2:19006",
         # Produção
         "https://legixtech.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["*"],
 )
 
 api.include_router(auth.router)
