@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -32,11 +33,24 @@ def run_migrations():
     try:
         from alembic.config import Config
         from alembic import command
-        import os
 
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         alembic_cfg = Config(os.path.join(base_dir, "alembic.ini"))
-        alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
+        alembic_cfg.set_main_option(
+            "script_location", os.path.join(base_dir, "alembic")
+        )
+
+        # ← FIX: injeta a DATABASE_URL do ambiente no alembic
+        # Sem isso, o alembic usa a URL placeholder do alembic.ini e falha silenciosamente
+        db_url = os.getenv("MIGRATION_URL") or os.getenv("DATABASE_URL", "")
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+        if not db_url or db_url == "driver://user:pass@localhost/dbname":
+            logger.warning("⚠️  DATABASE_URL não definida — migrations puladas.")
+            return
+
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
         command.upgrade(alembic_cfg, "head")
         logger.info("✅ Migrations aplicadas com sucesso.")
     except Exception as e:
