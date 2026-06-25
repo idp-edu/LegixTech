@@ -31,8 +31,8 @@ def upgrade() -> None:
         ondelete='CASCADE'
     )
 
-    # Cria índice no user_id
-    op.create_index(op.f('ix_notifications_user_id'), 'notifications', ['user_id'], unique=False)
+    # 
+op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id)")
 
 
 def downgrade() -> None:
