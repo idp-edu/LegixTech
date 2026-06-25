@@ -4,6 +4,7 @@ Cache-aside: busca no banco local primeiro, fallback para API da Câmara.
 """
 
 import asyncio
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -19,6 +20,8 @@ from app.services import camara_client as camara
 from app.services import ods_classifier
 from app.services.proposicao_service import ProposicaoService
 from app.services.resumo_service import explicar_termo, gerar_resumo
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projetos", tags=["Projetos"])
 
@@ -69,7 +72,6 @@ def get_estatisticas(db: Session = Depends(get_db)):
 
 # ─── LISTAGEM ────────────────────────────────────────────────────────────────
 
-# Cap máximo absoluto de registros buscados no banco para filtro ODS
 _ODS_BUSCA_CAP = 200
 
 @router.get("/")
@@ -79,15 +81,13 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(50, ge=1, le=50),  # ✅ máximo baixado de 100 para 50
+    por_pagina: int = Query(50, ge=1, le=50),
     db: Session = Depends(get_db),
 ):
-    # ✅ Cap fixo em vez de multiplicador ilimitado
     if ods is not None:
-        # Para filtro ODS: busca um lote fixo de no máximo 200 registros
-        # e pagina sobre eles em memória — seguro e previsível
         limit_busca = _ODS_BUSCA_CAP
-        skip_busca = 0  # sempre busca do início, pagina em memória
+        skip_busca = 0
+        logger.info(f"Listagem com filtro ODS={ods} — buscando até {limit_busca} registros")
     else:
         limit_busca = por_pagina
         skip_busca = (pagina - 1) * por_pagina
@@ -127,11 +127,11 @@ async def listar_projetos(
             if ods is None or any(o["numero"] == ods for o in ods_list):
                 resultado.append(item)
 
-        # ✅ Pagina sobre o resultado filtrado em memória
         if ods is not None:
             inicio = (pagina - 1) * por_pagina
             fim = inicio + por_pagina
             pagina_resultado = resultado[inicio:fim]
+            logger.info(f"ODS={ods}: {len(resultado)} encontrados, retornando [{inicio}:{fim}]")
             return {
                 "dados": pagina_resultado,
                 "total": len(resultado),
@@ -149,6 +149,7 @@ async def listar_projetos(
         }
 
     # Fallback: busca direto na API da Câmara
+    logger.info(f"Cache insuficiente (local={len(local) if local else 0}) — fallback para API da Câmara")
     itens_camara = max(por_pagina, 50)
     data_inicio = f"{ano}-01-01" if ano else None
     data_fim    = f"{ano}-12-31" if ano else None
@@ -162,6 +163,7 @@ async def listar_projetos(
             itens=itens_camara,
         )
     except Exception as e:
+        logger.error(f"Erro ao consultar API da Câmara: {e}")
         raise HTTPException(status_code=503, detail=f"API da Câmara indisponível: {e}")
 
     proposicoes = raw.get("dados", [])
@@ -171,7 +173,8 @@ async def listar_projetos(
             temas_raw = await camara.obter_temas(prop_id)
             temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
             return prop_id, temas
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Erro ao buscar temas da proposição {prop_id}: {e}")
             return prop_id, []
 
     tasks = [_buscar_temas(p.get("id")) for p in proposicoes if p.get("id")]
@@ -220,6 +223,7 @@ async def listar_projetos(
         "erro_upstream": raw.get("erro_upstream"),
     }
 
+
 # ─── ENDPOINTS FIXOS (antes do /{external_id}) ───────────────────────────────
 
 @router.get("/temas/disponiveis")
@@ -248,6 +252,7 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
     resultado = await ProposicaoService.buscar_por_id(db, external_id)
 
     if not resultado:
+        logger.warning(f"Projeto {external_id} não encontrado")
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
     if resultado.get("fonte") == "banco_local":
@@ -265,7 +270,8 @@ async def detalhe_projeto(external_id: str, db: Session = Depends(get_db)):
         temas_raw   = await camara.obter_temas(int(external_id))
         autores = autores_raw.get("dados", [])
         temas   = [t.get("tema", "") for t in temas_raw.get("dados", [])]
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Erro ao buscar autores/temas do projeto {external_id}: {e}")
         autores, temas = [], []
 
     ods_list = ods_classifier.classificar(resultado.get("ementa", ""), temas)
@@ -285,6 +291,7 @@ async def tramitacao_projeto(external_id: str):
     try:
         raw = await camara.obter_tramitacoes(int(external_id))
     except Exception as e:
+        logger.error(f"Erro ao buscar tramitação do projeto {external_id}: {e}")
         raise HTTPException(status_code=503, detail=f"Erro ao buscar tramitação: {e}")
 
     if raw.get("erro_upstream"):
@@ -320,6 +327,7 @@ async def resumo_acessivel(external_id: str):
     try:
         raw = await camara.obter_proposicao(int(external_id))
     except Exception as e:
+        logger.error(f"Erro ao buscar proposição {external_id} para resumo: {e}")
         raise HTTPException(status_code=404, detail=f"Projeto não encontrado: {e}")
 
     p = raw.get("dados", {})

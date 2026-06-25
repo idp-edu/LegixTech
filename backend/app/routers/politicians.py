@@ -1,5 +1,6 @@
 # backend/app/routers/politicians.py
 
+import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from app.models.saved_politician import SavedPolitician
 from app.models.user import User
 from app.schemas.politician import PoliticianResponse, PoliticianListResponse
 from app.services import politician_notification_service
+
+logger = logging.getLogger(__name__)
 
 _HTTP_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
@@ -108,6 +111,7 @@ async def _api_buscar_senador(external_id: str) -> Politician:
                 timeout=15,
             )
         if resp.status_code != 200:
+            logger.warning(f"Senador {external_id} não encontrado na API (status={resp.status_code})")
             raise HTTPException(status_code=404, detail="Senador não encontrado")
 
         dados = resp.json()
@@ -133,7 +137,8 @@ async def _api_buscar_senador(external_id: str) -> Politician:
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error(f"Erro ao buscar senador {external_id} na API do Senado: {e}")
         raise HTTPException(status_code=404, detail="Senador não encontrado")
 
 
@@ -141,6 +146,7 @@ async def _api_buscar_deputado(external_id: str) -> Politician:
     async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados/{external_id}", timeout=10)
     if resp.status_code != 200:
+        logger.warning(f"Deputado {external_id} não encontrado na API da Câmara (status={resp.status_code})")
         raise HTTPException(status_code=404, detail="Político não encontrado na API da Câmara")
 
     dados = resp.json().get("dados", {})
@@ -157,18 +163,15 @@ async def _api_buscar_deputado(external_id: str) -> Politician:
 
 
 async def _buscar_ou_criar_politico(external_id: str, db: Session) -> Politician:
-    # 1. Tenta banco local (síncrono)
     politico = _db_buscar_politico(db, external_id)
     if politico:
         return politico
 
-    # 2. Busca na API externa (assíncrono)
     if external_id.startswith("sen_"):
         politico = await _api_buscar_senador(external_id)
     else:
         politico = await _api_buscar_deputado(external_id)
 
-    # 3. Salva no banco (síncrono)
     return _db_salvar_politico(db, politico)
 
 
@@ -181,6 +184,7 @@ async def _buscar_senadores(nome: str = None, partido: str = None, estado: str =
                 timeout=15,
             )
         if resp.status_code != 200:
+            logger.warning(f"API do Senado retornou status={resp.status_code}")
             return []
 
         dados = resp.json()
@@ -216,7 +220,8 @@ async def _buscar_senadores(nome: str = None, partido: str = None, estado: str =
             ))
 
         return resultado
-    except Exception:
+    except Exception as e:
+        logger.error(f"Erro ao buscar lista de senadores: {e}")
         return []
 
 
@@ -236,6 +241,7 @@ async def listar_politicos(
     usar_cache = total_cache >= _CACHE_MIN_DEPUTADOS
 
     if usar_cache:
+        logger.info(f"Listando políticos do cache (total={total_cache}, casa={casa})")
         total_filtrado, politicos = _db_listar_cache(
             db, casa, nome, partido, estado,
             skip=(pagina - 1) * por_pagina,
@@ -282,6 +288,7 @@ async def listar_politicos(
     async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/deputados", params=params, timeout=10)
     if resp.status_code != 200:
+        logger.error(f"API da Câmara retornou status={resp.status_code} ao listar deputados")
         raise HTTPException(status_code=502, detail="Erro ao consultar API da Câmara")
 
     dados_camara = resp.json().get("dados", [])
@@ -318,7 +325,7 @@ async def listar_politicos(
     )
 
 
-# ✅ CORRIGIDO: salvos/meus ANTES de /{external_id}
+# ✅ salvos/meus ANTES de /{external_id}
 @router.get("/salvos/meus")
 def meus_politicos_salvos(
     db: Session = Depends(get_db),
@@ -346,7 +353,7 @@ def meus_politicos_salvos(
 async def perfil_politico(external_id: str, db: Session = Depends(get_db)):
     p = await _buscar_ou_criar_politico(external_id, db)
 
-    votos_db = _db_get_votos(db, p.id)  # ✅ síncrono
+    votos_db = _db_get_votos(db, p.id)
     total = len(votos_db)
     favor = sum(1 for v in votos_db if v.vote == "Sim")
     contra = sum(1 for v in votos_db if v.vote == "Não")
@@ -388,6 +395,7 @@ async def projetos_do_politico(
     async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
         resp = await client.get(f"{CAMARA_API}/proposicoes", params=params, timeout=10)
     if resp.status_code != 200:
+        logger.error(f"Erro ao buscar projetos do deputado {external_id} (status={resp.status_code})")
         raise HTTPException(status_code=502, detail="Erro ao consultar proposições na API da Câmara")
     dados = resp.json().get("dados", [])
     return {"external_id": external_id, "pagina": pagina, "por_pagina": por_pagina, "total": len(dados), "projetos": dados}
@@ -403,9 +411,9 @@ async def votacoes_do_politico(
     if external_id.startswith("sen_"):
         return {"external_id": external_id, "fonte": "n/a", "total": 0, "votacoes": []}
 
-    politico = _db_buscar_politico(db, external_id)  # ✅ síncrono
+    politico = _db_buscar_politico(db, external_id)
     if politico:
-        votos = _db_get_votos_paginado(db, politico.id, (pagina - 1) * por_pagina, por_pagina)  # ✅ síncrono
+        votos = _db_get_votos_paginado(db, politico.id, (pagina - 1) * por_pagina, por_pagina)
         if votos:
             return {
                 "external_id": external_id,
@@ -424,6 +432,7 @@ async def votacoes_do_politico(
             timeout=10,
         )
     if resp.status_code != 200:
+        logger.error(f"Erro ao buscar votações do deputado {external_id} (status={resp.status_code})")
         raise HTTPException(status_code=502, detail="Erro ao consultar votações na API da Câmara")
     dados = resp.json().get("dados", [])
     return {"external_id": external_id, "fonte": "camara_api", "total": len(dados), "votacoes": dados}
@@ -442,7 +451,9 @@ async def salvar_politico(
         db.commit()
     except IntegrityError:
         db.rollback()
+        logger.warning(f"Usuário {current_user.id} tentou favoritar político {external_id} já salvo")
         raise HTTPException(status_code=400, detail="Político já favoritado")
+    logger.info(f"Usuário {current_user.id} favoritou político {external_id}")
     return {"message": f"{politico.name} adicionado aos favoritos"}
 
 
@@ -452,14 +463,15 @@ def remover_politico_salvo(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    politico = _db_buscar_politico(db, external_id)  
+    politico = _db_buscar_politico(db, external_id)
     if not politico:
         raise HTTPException(status_code=404, detail="Político não encontrado")
-    salvo = _db_get_salvo(db, current_user.id, politico.id)  
+    salvo = _db_get_salvo(db, current_user.id, politico.id)
     if not salvo:
         raise HTTPException(status_code=404, detail="Político não está nos favoritos")
     db.delete(salvo)
     db.commit()
+    logger.info(f"Usuário {current_user.id} removeu político {external_id} dos favoritos")
     return {"message": f"{politico.name} removido dos favoritos"}
 
 

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.schemas.auth import GoogleLoginRequest, LoginRequest, RegisterRequest, 
 from app.services.auth_service import login_with_google
 from app.models.user import User
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
@@ -16,15 +18,21 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
 
-    user = User(
-        email=request.email,
-        name=request.name,
-        password_hash=hash_password(request.password),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        user = User(
+            email=request.email,
+            name=request.name,
+            password_hash=hash_password(request.password),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao registrar usuário {request.email}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao criar conta")
 
+    logger.info(f"Novo usuário registrado: {user.email} (id={user.id})")
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
@@ -33,11 +41,14 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == request.email).first()
     if not user or not user.password_hash:
+        logger.warning(f"Tentativa de login para e-mail inexistente: {request.email}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     if not verify_password(request.password, user.password_hash):
+        logger.warning(f"Senha incorreta para: {request.email}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    logger.info(f"Login bem-sucedido: {user.email} (id={user.id})")
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
@@ -46,7 +57,9 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
     result = login_with_google(db, request.token)
     if not result:
+        logger.warning("Tentativa de login Google com token inválido")
         raise HTTPException(status_code=401, detail="Token Google inválido")
+    logger.info(f"Login Google bem-sucedido: {result['user'].email}")
     return {
         "access_token": result["access_token"],
         "token_type": "bearer",
@@ -71,6 +84,12 @@ def update_me(
             raise HTTPException(status_code=422, detail="Nome deve ter pelo menos 2 caracteres")
         current_user.name = name
 
-    db.commit()
-    db.refresh(current_user)
+    try:
+        db.commit()
+        db.refresh(current_user)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar perfil do usuário id={current_user.id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao atualizar perfil")
+
     return current_user

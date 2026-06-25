@@ -25,23 +25,23 @@ from app.models.politician_vote import PoliticianVote  # noqa
 from app.models.saved_politician import SavedPolitician  # noqa
 from app.models.followed_politician import FollowedPolitician  # noqa
 
+# ✅ Configuração global — formata todos os loggers da aplicação
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
 def run_migrations():
-    """Roda alembic upgrade head ao iniciar — funciona sem shell no Render."""
     try:
         from alembic.config import Config
         from alembic import command
 
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         alembic_cfg = Config(os.path.join(base_dir, "alembic.ini"))
-        alembic_cfg.set_main_option(
-            "script_location", os.path.join(base_dir, "alembic")
-        )
+        alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
 
-        # ← FIX: injeta a DATABASE_URL do ambiente no alembic
-        # Sem isso, o alembic usa a URL placeholder do alembic.ini e falha silenciosamente
         db_url = os.getenv("MIGRATION_URL") or os.getenv("DATABASE_URL", "")
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -55,24 +55,23 @@ def run_migrations():
         logger.info("✅ Migrations aplicadas com sucesso.")
     except Exception as e:
         logger.error(f"❌ Erro ao rodar migrations: {e}")
-        # Não derruba o servidor — loga e continua
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Executa tarefas de startup antes de aceitar requisições."""
     run_migrations()
     yield
 
 
-api = FastAPI(
+# ✅ Removido alias `api` — objeto direto chamado `app`
+app = FastAPI(
     title="LegixTech API",
     description="Backend do aplicativo de monitoramento legislativo com classificação ODS",
     version="2.0.0",
     lifespan=lifespan,
 )
 
-api.add_middleware(
+app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8081",
@@ -90,27 +89,27 @@ api.add_middleware(
     allow_headers=["*"],
 )
 
-api.include_router(auth.router)
-api.include_router(projects.router)
-api.include_router(saved.router)
-api.include_router(ods.router)
-api.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
-api.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
-api.include_router(politicians.router)
-api.include_router(followed.router)
-api.include_router(chat.router)
-api.include_router(proposicoes.router)
-api.include_router(votacoes.router)
-api.include_router(partidos.router)
-api.include_router(deputados.router)
-api.include_router(eventos.router)
-api.include_router(frentes.router)
-api.include_router(orgaos.router)
-api.include_router(blocos.router)
-api.include_router(legislaturas.router)
+app.include_router(auth.router)
+app.include_router(projects.router)
+app.include_router(saved.router)
+app.include_router(ods.router)
+app.include_router(notifications.router, prefix="/notifications", tags=["Notificações"])
+app.include_router(daily_summary.router, prefix="/daily-summary", tags=["Resumo Diário"])
+app.include_router(politicians.router)
+app.include_router(followed.router)
+app.include_router(chat.router)
+app.include_router(proposicoes.router)
+app.include_router(votacoes.router)
+app.include_router(partidos.router)
+app.include_router(deputados.router)
+app.include_router(eventos.router)
+app.include_router(frentes.router)
+app.include_router(orgaos.router)
+app.include_router(blocos.router)
+app.include_router(legislaturas.router)
 
 
-@api.get("/")
+@app.get("/")
 def root():
     return {
         "app": "LegixTech API",
@@ -126,7 +125,3 @@ def root():
             "docs": "/docs",
         },
     }
-
-
-# alias para compatibilidade com uvicorn e Render
-app = api
