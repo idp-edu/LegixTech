@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
     GOOGLE_CLIENT_ID: str
     DATABASE_URL: str
-    GEMINI_API_KEY: str = "" 
+    GEMINI_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

@@ -5,12 +5,10 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Adiciona o diretório backend ao path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 load_dotenv()
 
-# Importa todos os models para o Alembic detectar
 from app.core.database import Base
 from app.models.user import User
 from app.models.project import Project
@@ -27,9 +25,20 @@ from app.models.saved_politician import SavedPolitician  # noqa
 
 config = context.config
 
+
+def _build_url(raw_url: str) -> str:
+    url = raw_url.strip()
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    if "?" not in url:
+        url += "?sslmode=require"
+    elif "sslmode" not in url:
+        url += "&sslmode=require"
+    return url
+
+
 db_url = os.getenv("MIGRATION_URL") or os.getenv("DATABASE_URL", "")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+db_url = _build_url(db_url)
 config.set_main_option("sqlalchemy.url", db_url)
 
 if config.config_file_name is not None:
