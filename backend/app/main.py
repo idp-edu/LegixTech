@@ -25,12 +25,14 @@ from app.models.politician_vote import PoliticianVote  # noqa
 from app.models.saved_politician import SavedPolitician  # noqa
 from app.models.followed_politician import FollowedPolitician  # noqa
 
-# ✅ Configuração global — formata todos os loggers da aplicação
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# ── Modo debug: lê variável de ambiente DEBUG=true ───────────────────────────
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 
 def run_migrations():
@@ -63,7 +65,6 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# ✅ Removido alias `api` — objeto direto chamado `app`
 app = FastAPI(
     title="LegixTech API",
     description="Backend do aplicativo de monitoramento legislativo com classificação ODS",
@@ -71,20 +72,34 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# ── CORS ─────────────────────────────────────────────────────────────────────
+# Em modo DEBUG (desenvolvimento local) usa wildcard para não bloquear
+# portas dinâmicas do Expo (8082, 19007, etc.)
+if DEBUG:
+    allow_origins = ["*"]
+    allow_credentials = False  # credentials não funciona com wildcard
+    logger.warning("⚠️  CORS em modo DEBUG: aceitando todas as origens (*)")
+else:
+    allow_origins = [
         "http://localhost:8081",
+        "http://localhost:8082",   # porta alternativa Expo
         "http://localhost:19006",
+        "http://localhost:19007",  # porta alternativa Expo
         "http://localhost:19000",
         "http://localhost:3000",
         "http://127.0.0.1:8081",
+        "http://127.0.0.1:8082",
         "http://127.0.0.1:19006",
-        "http://10.0.2.2:8081",
+        "http://10.0.2.2:8081",    # Android emulador
         "http://10.0.2.2:19006",
         "https://legixtech.onrender.com",
-    ],
-    allow_credentials=True,
+    ]
+    allow_credentials = True
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
