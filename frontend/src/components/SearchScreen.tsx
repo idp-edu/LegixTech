@@ -217,8 +217,8 @@ export function SearchScreen({
             </View>
           ) : error ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-              <AlertCircle size={48} color="#e53e3e" />
-              <Text style={{ marginTop: 12, color: '#e53e3e', fontWeight: '500', textAlign: 'center' }}>
+              <AlertCircle size={48} color={colors.error} />  {/* ✅ CORRIGIDO */}
+              <Text style={{ marginTop: 12, color: colors.error, fontWeight: '500', textAlign: 'center' }}>  {/* ✅ CORRIGIDO */}
                 {error}
               </Text>
               <Pressable
