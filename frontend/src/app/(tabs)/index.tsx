@@ -1,3 +1,5 @@
+// frontend/src/app/(tabs)/index.tsx
+
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 
@@ -42,12 +44,21 @@ export default function HomeTab() {
     setLoading(true);
     setError(null);
     try {
-      const [res, summary] = await Promise.all([
-        projectsService.listar({ por_pagina: 100 }),
+      // Promise.allSettled: se daily-summary falhar, projetos ainda carregam
+      const [resResult, summaryResult] = await Promise.allSettled([
+        projectsService.listar({ por_pagina: 20 }), // ← reduzido para 20 para ser mais rápido
         api.get<DailySummary>('/daily-summary/').catch(() => null),
       ]);
-      setProjects(mapApiListToUiList(res.dados ?? []));
-      if (summary) setDailySummary(summary);
+
+      if (resResult.status === 'fulfilled') {
+        setProjects(mapApiListToUiList(resResult.value.dados ?? []));
+      } else {
+        throw new Error(resResult.reason?.message ?? 'Erro ao carregar projetos.');
+      }
+
+      if (summaryResult.status === 'fulfilled' && summaryResult.value) {
+        setDailySummary(summaryResult.value as DailySummary);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar projetos.');
     } finally {

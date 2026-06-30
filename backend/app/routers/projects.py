@@ -101,8 +101,8 @@ async def listar_projetos(
         q=q,
     )
 
-    MINIMO_LOCAL = 20
-    if local and len(local) >= MINIMO_LOCAL:
+    # ← FIX: retorna qualquer resultado do banco, sem exigir mínimo de 20
+    if local:
         resultado = []
         for p in local:
             temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
@@ -148,8 +148,8 @@ async def listar_projetos(
             "fonte": "banco_local",
         }
 
-    # Fallback: busca direto na API da Câmara
-    logger.info(f"Cache insuficiente (local={len(local) if local else 0}) — fallback para API da Câmara")
+    # Fallback: busca direto na API da Câmara SOMENTE se banco vazio
+    logger.info(f"Banco sem resultados para q={q!r} — fallback para API da Câmara")
     itens_camara = max(por_pagina, 50)
     data_inicio = f"{ano}-01-01" if ano else None
     data_fim    = f"{ano}-12-31" if ano else None

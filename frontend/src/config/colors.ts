@@ -12,6 +12,7 @@ export const Colors = {
     primaryMuted: '#EFF6FF',
     headerCard: '#1E3A6E',
     headerCardText: '#FFFFFF',
+    error: '#DC2626',           // ← NOVO
     kpiGreenBg: '#E8F5E9',
     kpiGreenText: '#2E7D32',
     kpiAmberBg: '#FFF8E1',
@@ -56,6 +57,7 @@ export const Colors = {
     primaryMuted: '#172554',
     headerCard: '#1E3A6E',
     headerCardText: '#FFFFFF',
+    error: '#F87171',           // ← NOVO
     kpiGreenBg: '#14532D',
     kpiGreenText: '#4ADE80',
     kpiAmberBg: '#451A03',

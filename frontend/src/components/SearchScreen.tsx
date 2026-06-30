@@ -1,4 +1,4 @@
-import { Filter, Search, UserCheck, UserCircle, UserPlus } from 'lucide-react-native';
+import { AlertCircle, Filter, Search, UserCheck, UserCircle, UserPlus } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -59,9 +59,9 @@ export function SearchScreen({
   onPoliticianClick,
   onToggleSavePolitician,
 }: SearchScreenProps) {
-  const [activeTab, setActiveTab]   = useState<'projetos' | 'parlamentares'>('projetos');
+  const [activeTab, setActiveTab]     = useState<'projetos' | 'parlamentares'>('projetos');
   const [searchQuery, setSearchQuery] = useState('');
-  const [odsFilter, setOdsFilter]   = useState<number | undefined>(undefined);
+  const [odsFilter, setOdsFilter]     = useState<number | undefined>(undefined);
   const [houseFilter, setHouseFilter] = useState<'Todos' | 'Senado' | 'Câmara'>('Todos');
   const [stateFilter, setStateFilter] = useState('Todos');
   const { colors } = useTheme();
@@ -71,6 +71,8 @@ export function SearchScreen({
     loading: searchLoading,
     loadingMore,
     loadMore,
+    error,
+    search,
   } = useProjectSearch(
     activeTab === 'projetos' ? searchQuery : '',
     activeTab === 'projetos' ? odsFilter   : undefined,
@@ -106,10 +108,8 @@ export function SearchScreen({
     </Pressable>
   );
 
-  // ── cabeçalho da lista de projetos (filtros + título) ─────────────────
   const ProjectListHeader = (
     <View style={{ gap: 16, paddingTop: 24 }}>
-      {/* Filtro ODS */}
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Filter size={14} color={colors.textMuted} />
@@ -151,7 +151,6 @@ export function SearchScreen({
         </ScrollView>
       </View>
 
-      {/* Título + contagem */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
           {odsFilter !== undefined
@@ -169,7 +168,6 @@ export function SearchScreen({
     </View>
   );
 
-  // ── rodapé da FlatList (spinner de "carregando mais") ─────────────────
   const ProjectListFooter = loadingMore ? (
     <View style={{ paddingVertical: 24, alignItems: 'center' }}>
       <ActivityIndicator size="small" color={colors.primary} />
@@ -189,14 +187,13 @@ export function SearchScreen({
 
       {/* Tabs */}
       <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: colors.surface, paddingHorizontal: 16 }}>
-        <TabButton id="projetos"     label="Projetos" />
+        <TabButton id="projetos"      label="Projetos" />
         <TabButton id="parlamentares" label="Parlamentares" />
       </View>
 
-      {/* ── ABA PROJETOS — usa FlatList ────────────────────────────────── */}
+      {/* ── ABA PROJETOS ─────────────────────────────────────────────── */}
       {activeTab === 'projetos' && (
         <>
-          {/* Campo de busca fora da FlatList para não rolar */}
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12 }}>
               <Search size={20} color={colors.textMuted} />
@@ -217,6 +214,19 @@ export function SearchScreen({
               <Text style={{ marginTop: 12, color: colors.textMuted }}>
                 {searchQuery || odsFilter ? 'Buscando projetos...' : 'Carregando projetos...'}
               </Text>
+            </View>
+          ) : error ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+              <AlertCircle size={48} color="#e53e3e" />
+              <Text style={{ marginTop: 12, color: '#e53e3e', fontWeight: '500', textAlign: 'center' }}>
+                {error}
+              </Text>
+              <Pressable
+                onPress={() => search(searchQuery, odsFilter)}
+                style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, backgroundColor: colors.primary }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Tentar novamente</Text>
+              </Pressable>
             </View>
           ) : filteredProjects.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -252,10 +262,9 @@ export function SearchScreen({
         </>
       )}
 
-      {/* ── ABA PARLAMENTARES — ScrollView normal ─────────────────────── */}
+      {/* ── ABA PARLAMENTARES ────────────────────────────────────────── */}
       {activeTab === 'parlamentares' && (
         <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} contentContainerStyle={{ paddingTop: 24, paddingBottom: 96, gap: 16 }}>
-          {/* Campo de busca */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12 }}>
             <Search size={20} color={colors.textMuted} />
             <TextInput

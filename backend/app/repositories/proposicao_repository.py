@@ -1,7 +1,15 @@
-from sqlalchemy.orm import Session
+import unicodedata
+from typing import List, Optional
+
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
 from app.models.project import Project
-from typing import Optional, List
+
+
+def _normalize(s: str) -> str:
+    """Remove acentos e coloca em minúsculo para busca accent-insensitive."""
+    return unicodedata.normalize('NFD', s).encode('ascii', 'ignore').decode('ascii').lower()
 
 
 class ProposicaoRepository:
@@ -22,7 +30,6 @@ class ProposicaoRepository:
         tipo: str = None,
         ano: int = None,
         q: str = None,
-        # NOVO: aceita ods para pré-filtrar antes do classificador
         ods: int = None,
     ) -> List[Project]:
         query = db.query(Project)
@@ -31,15 +38,15 @@ class ProposicaoRepository:
         if ano:
             query = query.filter(Project.ano == ano)
         if q:
+            q_norm = _normalize(q)
             query = query.filter(
                 or_(
                     Project.titulo.ilike(f"%{q}%"),
-                    Project.ementa.ilike(f"%{q}%")
+                    Project.titulo.ilike(f"%{q_norm}%"),
+                    Project.ementa.ilike(f"%{q}%"),
+                    Project.ementa.ilike(f"%{q_norm}%"),
                 )
             )
-        # Não filtramos ODS aqui no banco (ODS é calculado dinamicamente
-        # pelo ods_classifier na ementa). Retornamos tudo e o router filtra.
-        # Mas passamos o parâmetro para o router saber que precisa filtrar.
         return query.offset(skip).limit(limit).all()
 
     @staticmethod
