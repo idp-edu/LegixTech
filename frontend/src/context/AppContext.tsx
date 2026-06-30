@@ -26,6 +26,7 @@ import {
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
 import { fetchSavedProjectIds } from '@/services/savedService';
+import type { ToastType } from '@/components/Toast'; // ← NOVO
 
 interface AppContextValue {
   isAuthenticated: boolean;
@@ -42,6 +43,7 @@ interface AppContextValue {
   showChatbot: boolean;
   chatbotContext: string;
   toastMessage: string;
+  toastType: ToastType; // ← NOVO
   showToast: boolean;
   loginWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   loginWithGoogle: (payload: { token: string; user?: AuthUser }) => Promise<void>;
@@ -59,7 +61,7 @@ interface AppContextValue {
   setShowDigestStories: (v: boolean) => void;
   openChatbot: (context?: string) => void;
   closeChatbot: () => void;
-  showToastMsg: (message: string) => void;
+  showToastMsg: (message: string, type?: ToastType) => void; // ← ATUALIZADO
   hideToast: () => void;
 }
 
@@ -88,6 +90,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatbotContext, setChatbotContext] = useState('projeto de lei');
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success'); // ← NOVO
   const [showToast, setShowToast] = useState(false);
 
   const validateToken = async (storedToken: string): Promise<boolean> => {
@@ -256,7 +259,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toggleTheme = useCallback(() => setIsDark((p) => !p), []);
 
-  // Corrigido: sincroniza com o backend antes de atualizar estado local
   const toggleSaveProject = useCallback(async (id: string) => {
     const isAlreadySaved = savedProjects.includes(id);
     try {
@@ -307,8 +309,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const closeChatbot = useCallback(() => setShowChatbot(false), []);
 
-  const showToastMsg = useCallback((message: string) => {
+  // ← ATUALIZADO: aceita e repassa o type
+  const showToastMsg = useCallback((message: string, type: ToastType = 'success') => {
     setToastMessage(message);
+    setToastType(type);
     setShowToast(true);
   }, []);
 
@@ -329,6 +333,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showChatbot,
     chatbotContext,
     toastMessage,
+    toastType,  // ← NOVO
     showToast,
     loginWithPassword,
     loginWithGoogle,

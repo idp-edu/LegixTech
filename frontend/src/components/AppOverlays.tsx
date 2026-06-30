@@ -16,6 +16,7 @@ export function AppOverlays() {
     closeChatbot,
     chatbotContext,
     toastMessage,
+    toastType,
     showToast,
     hideToast,
   } = useApp();
@@ -32,7 +33,6 @@ export function AppOverlays() {
       <DailyDigestStories
         isOpen={showDigestStories}
         onClose={() => setShowDigestStories(false)}
-        onViewProjects={() => setShowDigestStories(false)}
       />
       {!isGuest && (
         <ChatbotDrawer
@@ -42,7 +42,12 @@ export function AppOverlays() {
           projectTitle={isProjectContext ? chatbotContext : undefined}
         />
       )}
-      <Toast message={toastMessage} isVisible={showToast} onClose={hideToast} />
+      <Toast
+        message={toastMessage}
+        isVisible={showToast}
+        type={toastType}
+        onClose={hideToast}
+      />
     </>
   );
 }
