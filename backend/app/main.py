@@ -97,7 +97,6 @@ else:
         "http://127.0.0.1:19006",
         "http://10.0.2.2:8081",
         "http://10.0.2.2:19006",
-        "https://legixtech.onrender.com",
         "https://legixtech-x8p3.onrender.com",  # URL atual do Render
     ]
     allow_credentials = True
