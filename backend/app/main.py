@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import Base
+from app.core.database import Base, engine
 from app.routers import (
     auth, proposicoes, votacoes, partidos, deputados, eventos,
     frentes, orgaos, blocos, legislaturas, projects, saved, ods,
@@ -31,11 +31,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ── Modo debug: lê variável de ambiente DEBUG=true ───────────────────────────
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 
 def run_migrations():
+    # Garante que todas as tabelas existem antes de qualquer coisa
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Tabelas verificadas/criadas com sucesso.")
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar tabelas: {e}")
+
+    # Tenta rodar alembic por cima (atualiza colunas novas se houver)
     try:
         from alembic.config import Config
         from alembic import command
@@ -56,7 +63,7 @@ def run_migrations():
         command.upgrade(alembic_cfg, "head")
         logger.info("✅ Migrations aplicadas com sucesso.")
     except Exception as e:
-        logger.error(f"❌ Erro ao rodar migrations: {e}")
+        logger.warning(f"⚠️  Migrations puladas (tabelas já existem via create_all): {e}")
 
 
 @asynccontextmanager
@@ -72,27 +79,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
-# Em modo DEBUG (desenvolvimento local) usa wildcard para não bloquear
-# portas dinâmicas do Expo (8082, 19007, etc.)
+# ── CORS ──────────────────────────────────────────────────────────────────────
 if DEBUG:
     allow_origins = ["*"]
-    allow_credentials = False  # credentials não funciona com wildcard
+    allow_credentials = False
     logger.warning("⚠️  CORS em modo DEBUG: aceitando todas as origens (*)")
 else:
     allow_origins = [
         "http://localhost:8081",
-        "http://localhost:8082",   # porta alternativa Expo
+        "http://localhost:8082",
         "http://localhost:19006",
-        "http://localhost:19007",  # porta alternativa Expo
+        "http://localhost:19007",
         "http://localhost:19000",
         "http://localhost:3000",
         "http://127.0.0.1:8081",
         "http://127.0.0.1:8082",
         "http://127.0.0.1:19006",
-        "http://10.0.2.2:8081",    # Android emulador
+        "http://10.0.2.2:8081",
         "http://10.0.2.2:19006",
         "https://legixtech.onrender.com",
+        "https://legixtech-x8p3.onrender.com",  # URL atual do Render
     ]
     allow_credentials = True
 
