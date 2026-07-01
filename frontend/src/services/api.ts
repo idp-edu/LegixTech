@@ -8,6 +8,7 @@ type RequestOptions = {
   body?: unknown;
   token?: string;
   auth?: boolean;
+  timeoutMs?: number;
 };
 
 let _onUnauthorized: (() => void) | null = null;
@@ -16,8 +17,12 @@ export function registerUnauthorizedHandler(handler: () => void) {
   _onUnauthorized = handler;
 }
 
+// Render free tier dorme após 15min e leva até 60s para acordar.
+// 70s cobre o cold start com margem.
+const DEFAULT_TIMEOUT_MS = 70_000;
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token, auth = true } = options;
+  const { method = 'GET', body, token, auth = true, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
 
   const headers: HeadersInit = {
     Accept: 'application/json',
@@ -25,10 +30,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   };
 
   const authToken = token ?? (auth ? await getToken() : null);
-
   if (authToken) {
     headers.Authorization = `Bearer ${authToken}`;
   }
+
+  const controller = new AbortController();
+  const timerId = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
 
@@ -37,12 +44,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('O servidor demorou para responder. Pode estar acordando — tente novamente em alguns segundos.');
+    }
     throw new Error('Não foi possível conectar ao servidor.');
+  } finally {
+    clearTimeout(timerId);
   }
 
-  // Token expirado ou inválido → limpa sessão e redireciona para login
   if (response.status === 401) {
     await clearAuthStorage();
     _onUnauthorized?.();
@@ -54,7 +66,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     let message = `Erro HTTP ${response.status}`;
-
     if (isJson) {
       const errorPayload = await response.json().catch(() => null);
       message =
@@ -63,7 +74,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
         errorPayload?.error ||
         message;
     }
-
     throw new Error(message);
   }
 

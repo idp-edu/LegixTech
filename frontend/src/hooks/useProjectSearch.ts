@@ -10,9 +10,11 @@ export function useProjectSearch(query: string, odsFilter?: number) {
   const [page, setPage]               = useState(1);
   const [hasMore, setHasMore]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
+  const [isWakingUp, setIsWakingUp]   = useState(false);
 
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchKeyRef = useRef('');
+  const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchKeyRef    = useRef('');
+  const wakeUpShownRef  = useRef(false); // só avisa "acordando" uma vez por sessão
 
   const search = useCallback(async (q: string, ods?: number) => {
     const key = `${q}|${ods}`;
@@ -22,6 +24,17 @@ export function useProjectSearch(query: string, odsFilter?: number) {
     setPage(1);
     setHasMore(true);
     setError(null);
+
+    // Após 4s sem resposta, exibe aviso de cold start (só na primeira vez)
+    let wakeUpTimer: ReturnType<typeof setTimeout> | null = null;
+    if (!wakeUpShownRef.current) {
+      wakeUpTimer = setTimeout(() => {
+        if (searchKeyRef.current === key) {
+          setIsWakingUp(true);
+        }
+      }, 4_000);
+    }
+
     try {
       const resp = await projectsService.listar({
         por_pagina: 50,
@@ -29,7 +42,12 @@ export function useProjectSearch(query: string, odsFilter?: number) {
         ...(q.trim() ? { q: q.trim() } : {}),
         ...(ods       ? { ods }         : {}),
       });
+
       if (searchKeyRef.current !== key) return;
+
+      wakeUpShownRef.current = true;
+      setIsWakingUp(false);
+
       const mapped = mapApiListToUiList(resp.dados);
       setResults(mapped);
       setHasMore(mapped.length >= 50);
@@ -37,7 +55,14 @@ export function useProjectSearch(query: string, odsFilter?: number) {
       if (searchKeyRef.current !== key) return;
       setResults([]);
       setHasMore(false);
-      if (err instanceof TypeError) {
+      setIsWakingUp(false);
+
+      if (err instanceof Error && err.message.includes('acordando')) {
+        setError('O servidor está acordando. Aguarde alguns segundos e tente novamente.');
+      } else if (
+        err instanceof TypeError ||
+        (err instanceof Error && err.message.includes('conectar'))
+      ) {
         setError('Sem conexão com o servidor. Verifique sua internet.');
       } else if (err instanceof Error && err.message.includes('503')) {
         setError('Serviço temporariamente indisponível. Tente novamente.');
@@ -45,6 +70,7 @@ export function useProjectSearch(query: string, odsFilter?: number) {
         setError('Erro ao buscar projetos. Tente novamente.');
       }
     } finally {
+      if (wakeUpTimer) clearTimeout(wakeUpTimer);
       if (searchKeyRef.current === key) setLoading(false);
     }
   }, []);
@@ -82,5 +108,5 @@ export function useProjectSearch(query: string, odsFilter?: number) {
     }
   }, [loading, loadingMore, hasMore, query, odsFilter, page, fetchNextPage]);
 
-  return { results, loading, loadingMore, hasMore, loadMore, error, search };
+  return { results, loading, loadingMore, hasMore, loadMore, error, isWakingUp, search };
 }

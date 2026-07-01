@@ -72,6 +72,7 @@ export function SearchScreen({
     loadingMore,
     loadMore,
     error,
+    isWakingUp,
     search,
   } = useProjectSearch(
     activeTab === 'projetos' ? searchQuery : '',
@@ -209,16 +210,20 @@ export function SearchScreen({
           </View>
 
           {searchLoading ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={{ marginTop: 12, color: colors.textMuted }}>
-                {searchQuery || odsFilter ? 'Buscando projetos...' : 'Carregando projetos...'}
+              <Text style={{ marginTop: 12, color: colors.textMuted, textAlign: 'center', lineHeight: 22 }}>
+                {isWakingUp
+                  ? '☕ O servidor está acordando...\nIsso pode levar até 1 minuto na primeira vez.'
+                  : searchQuery || odsFilter
+                  ? 'Buscando projetos...'
+                  : 'Carregando projetos...'}
               </Text>
             </View>
           ) : error ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-              <AlertCircle size={48} color={colors.error} />  {/* ✅ CORRIGIDO */}
-              <Text style={{ marginTop: 12, color: colors.error, fontWeight: '500', textAlign: 'center' }}>  {/* ✅ CORRIGIDO */}
+              <AlertCircle size={48} color={colors.error} />
+              <Text style={{ marginTop: 12, color: colors.error, fontWeight: '500', textAlign: 'center', lineHeight: 22 }}>
                 {error}
               </Text>
               <Pressable
@@ -231,7 +236,7 @@ export function SearchScreen({
           ) : filteredProjects.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <Search size={48} color={colors.textMuted} />
-              <Text style={{ marginTop: 12, color: colors.textMuted }}>
+              <Text style={{ marginTop: 12, color: colors.textMuted, textAlign: 'center' }}>
                 {odsFilter
                   ? `Nenhum projeto encontrado para ODS ${odsFilter}`
                   : searchQuery
