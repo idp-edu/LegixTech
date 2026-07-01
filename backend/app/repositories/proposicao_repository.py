@@ -30,7 +30,6 @@ class ProposicaoRepository:
         tipo: str = None,
         ano: int = None,
         q: str = None,
-        ods: int = None,
     ) -> List[Project]:
         query = db.query(Project)
         if tipo:

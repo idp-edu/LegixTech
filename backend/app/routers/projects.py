@@ -1,6 +1,10 @@
 """
 Endpoints de proposições: proxy enriquecido da API da Câmara dos Deputados.
-Cache-aside: busca no banco local primeiro, fallback para API da Câmara.
+Estratégia:
+  - Home (sem filtros): banco local primeiro; se < 20, complementa com API da Câmara
+    e persiste os novos registros para enriquecer o banco progressivamente.
+  - Busca/filtro (q, tipo, ano, ods): sempre vai à API da Câmara (dados completos),
+    mesclando com o banco local para aproveitar headlines/resumos já salvos.
 """
 
 import asyncio
@@ -39,6 +43,15 @@ ESTAGIOS = [
     {"id": 4, "nome": "Concluída"},
 ]
 
+# Mínimo de projetos na home antes de buscar da API da Câmara
+_HOME_MIN = 20
+
+# Máximo de itens que a API da Câmara aceita por página
+_CAMARA_MAX_ITENS = 100
+
+# Cap para busca por ODS (filtro feito localmente)
+_ODS_BUSCA_CAP = 200
+
 
 def _inferir_estagio(descricao: str) -> int:
     desc = (descricao or "").strip()
@@ -48,31 +61,119 @@ def _inferir_estagio(descricao: str) -> int:
     return 1
 
 
+def _projeto_para_item(p: Project) -> dict:
+    """Converte um model Project do banco em dict de resposta."""
+    temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
+    ods_list = ods_classifier.classificar(p.ementa or "", temas)
+    return {
+        "id":                p.external_id,
+        "external_id":       p.external_id,
+        "titulo":            p.titulo,
+        "ementa":            p.ementa,
+        "headline":          p.headline,
+        "situacao":          p.situacao,
+        "autor":             p.autor,
+        "ano":               p.ano,
+        "tipo":              p.tipo,
+        "data_apresentacao": str(p.data_apresentacao) if p.data_apresentacao else None,
+        "urlInteiroTeor":    p.url_texto_oficial,
+        "temas":             temas,
+        "ods":               ods_list,
+        "estagio_atual":     _inferir_estagio(p.situacao or ""),
+        "estagios":          ESTAGIOS,
+    }
+
+
+def _camara_para_item(p: dict, temas: list) -> dict:
+    """Converte um item bruto da API da Câmara em dict de resposta."""
+    _status  = p.get("statusProposicao") or {}
+    _autores = p.get("autores") or []
+    _sigla   = p.get("siglaTipo", "")
+    _numero  = p.get("numero", "")
+    _ano     = p.get("ano", "")
+    ods_list = ods_classifier.classificar(p.get("ementa", ""), temas)
+    return {
+        "id":                p.get("id"),
+        "external_id":       str(p.get("id", "")),
+        "ementa":            p.get("ementa"),
+        "headline":          None,
+        "urlInteiroTeor":    p.get("urlInteiroTeor"),
+        "titulo":            f"{_sigla} {_numero} / {_ano}".strip(),
+        "situacao":          _status.get("descricaoSituacao", ""),
+        "autor":             ", ".join(a["nome"] for a in _autores if a.get("nome")) or "Não informado",
+        "tipo":              _sigla,
+        "ano":               _ano,
+        "data_apresentacao": p.get("dataApresentacao"),
+        "ods":               ods_list,
+        "temas":             temas,
+        "estagio_atual":     _inferir_estagio(_status.get("descricaoSituacao", "")),
+        "estagios":          ESTAGIOS,
+    }
+
+
+async def _buscar_temas_camara(prop_id: int) -> tuple:
+    try:
+        temas_raw = await camara.obter_temas(prop_id)
+        temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
+        return prop_id, temas
+    except Exception as e:
+        logger.warning(f"Erro ao buscar temas da proposição {prop_id}: {e}")
+        return prop_id, []
+
+
+def _persistir_do_camara(db: Session, proposicoes: list, temas_por_id: dict) -> None:
+    """Salva no banco local os projetos vindos da Câmara que ainda não existem."""
+    for p in proposicoes:
+        ext_id = str(p.get("id", ""))
+        if not ext_id or ProposicaoRepository.existe(db, ext_id):
+            continue
+        _status  = p.get("statusProposicao") or {}
+        _autores = p.get("autores") or []
+        _sigla   = p.get("siglaTipo", "")
+        _numero  = p.get("numero", "")
+        _ano_val = p.get("ano")
+        try:
+            novo = Project(
+                external_id=ext_id,
+                titulo=f"{_sigla} {_numero} / {_ano_val}".strip(),
+                ementa=p.get("ementa"),
+                situacao=_status.get("descricaoSituacao", ""),
+                autor=", ".join(a["nome"] for a in _autores if a.get("nome")) or "Não informado",
+                ano=int(_ano_val) if _ano_val else None,
+                tipo=_sigla,
+                url_texto_oficial=p.get("urlInteiroTeor"),
+            )
+            db.add(novo)
+        except Exception as e:
+            logger.warning(f"Erro ao persistir projeto {ext_id}: {e}")
+    try:
+        db.commit()
+    except Exception as e:
+        logger.warning(f"Erro ao commitar projetos da Câmara: {e}")
+        db.rollback()
+
+
 # ─── ESTATÍSTICAS ─────────────────────────────────────────────────────────────
 
 @router.get("/estatisticas")
 def get_estatisticas(db: Session = Depends(get_db)):
     total = db.query(Project).count()
-
     por_situacao = (
         db.query(Project.situacao, func.count(Project.id))
         .group_by(Project.situacao)
         .all()
     )
-
     return {
         "total": total,
         "por_situacao": {
             situacao: contagem
             for situacao, contagem in por_situacao
             if situacao is not None
-        }
+        },
     }
 
 
-# ─── LISTAGEM ────────────────────────────────────────────────────────────────
-
-_ODS_BUSCA_CAP = 200
+# ─── LISTAGEM ─────────────────────────────────────────────────────────────────
 
 @router.get("/")
 async def listar_projetos(
@@ -81,52 +182,60 @@ async def listar_projetos(
     ano: Optional[int] = Query(None, description="Ano do projeto"),
     ods: Optional[int] = Query(None, description="Filtrar por ODS (1-17)"),
     pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(50, ge=1, le=50),
+    por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    if ods is not None:
-        limit_busca = _ODS_BUSCA_CAP
-        skip_busca = 0
-        logger.info(f"Listagem com filtro ODS={ods} — buscando até {limit_busca} registros")
-    else:
-        limit_busca = por_pagina
-        skip_busca = (pagina - 1) * por_pagina
+    tem_filtro = bool(q or tipo or ano or ods)
 
-    local = ProposicaoRepository.listar(
-        db,
-        skip=skip_busca,
-        limit=limit_busca,
-        tipo=tipo,
-        ano=ano,
-        q=q,
-    )
+    # ──────────────────────────────────────────────────────────────────────────
+    # MODO BUSCA/FILTRO: sempre vai à API da Câmara para resultados completos.
+    # O banco local serve apenas para enriquecer com headline quando disponível.
+    # ──────────────────────────────────────────────────────────────────────────
+    if tem_filtro:
+        logger.info(f"Busca com filtros — direto na API da Câmara: q={q!r} tipo={tipo} ano={ano} ods={ods}")
+        data_inicio = f"{ano}-01-01" if ano else None
+        data_fim    = f"{ano}-12-31" if ano else None
 
-    # ← FIX: retorna qualquer resultado do banco, sem exigir mínimo de 20
-    if local:
+        # Para ODS precisamos de um cap maior pois o filtro é feito localmente
+        itens_camara = _ODS_BUSCA_CAP if ods else min(por_pagina * 3, _CAMARA_MAX_ITENS)
+
+        try:
+            raw = await camara.listar_proposicoes(
+                siglaTipo=tipo,
+                dataApresentacaoInicio=data_inicio,
+                dataApresentacaoFim=data_fim,
+                keywords=q,
+                pagina=1,
+                itens=itens_camara,
+            )
+        except Exception as e:
+            logger.error(f"Erro ao consultar API da Câmara: {e}")
+            raise HTTPException(status_code=503, detail=f"API da Câmara indisponível: {e}")
+
+        proposicoes = raw.get("dados", [])
+
+        # Busca temas em paralelo
+        tasks = [_buscar_temas_camara(p.get("id")) for p in proposicoes if p.get("id")]
+        temas_por_id = {}
+        if tasks:
+            resultados = await asyncio.gather(*tasks)
+            temas_por_id = {pid: temas for pid, temas in resultados}
+
+        # Monta itens e aplica filtro ODS
         resultado = []
-        for p in local:
-            temas = [t.nome for t in p.temas] if hasattr(p, "temas") else []
-            ods_list = ods_classifier.classificar(p.ementa or "", temas)
-            item = {
-                "id":                p.external_id,
-                "external_id":       p.external_id,
-                "titulo":            p.titulo,
-                "ementa":            p.ementa,
-                "headline":          p.headline,
-                "situacao":          p.situacao,
-                "autor":             p.autor,
-                "ano":               p.ano,
-                "tipo":              p.tipo,
-                "data_apresentacao": str(p.data_apresentacao) if p.data_apresentacao else None,
-                "urlInteiroTeor":    p.url_texto_oficial,
-                "temas":             temas,
-                "ods":               ods_list,
-                "estagio_atual":     _inferir_estagio(p.situacao or ""),
-                "estagios":          ESTAGIOS,
-            }
-            if ods is None or any(o["numero"] == ods for o in ods_list):
+        for p in proposicoes:
+            temas = temas_por_id.get(p.get("id"), [])
+            item = _camara_para_item(p, temas)
+
+            # Enriquece com headline do banco local se existir
+            local = ProposicaoRepository.buscar_por_external_id(db, str(p.get("id", "")))
+            if local and local.headline:
+                item["headline"] = local.headline
+
+            if ods is None or any(o["numero"] == ods for o in item["ods"]):
                 resultado.append(item)
 
+        # Paginação para filtro ODS (feita localmente após filtrar)
         if ods is not None:
             inicio = (pagina - 1) * por_pagina
             fim = inicio + por_pagina
@@ -137,90 +246,86 @@ async def listar_projetos(
                 "total": len(resultado),
                 "pagina": pagina,
                 "por_pagina": por_pagina,
-                "fonte": "banco_local",
+                "fonte": "camara_api",
             }
 
+        # Paginação simples
+        inicio = (pagina - 1) * por_pagina
+        fim = inicio + por_pagina
+        return {
+            "dados": resultado[inicio:fim],
+            "total": len(resultado),
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "fonte": "camara_api",
+            "erro_upstream": raw.get("erro_upstream"),
+        }
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # MODO HOME (sem filtros): banco local primeiro.
+    # Se tiver menos de _HOME_MIN projetos, complementa com API da Câmara
+    # e persiste os novos para enriquecer o banco progressivamente.
+    # ──────────────────────────────────────────────────────────────────────────
+    total_banco = db.query(Project).count()
+    skip_busca = (pagina - 1) * por_pagina
+    local = ProposicaoRepository.listar(db, skip=skip_busca, limit=por_pagina)
+
+    if total_banco >= _HOME_MIN and local:
+        # Banco suficiente — retorna direto
+        resultado = [_projeto_para_item(p) for p in local]
         return {
             "dados": resultado,
-            "total": len(resultado),
+            "total": total_banco,
             "pagina": pagina,
             "por_pagina": por_pagina,
             "fonte": "banco_local",
         }
 
-    # Fallback: busca direto na API da Câmara SOMENTE se banco vazio
-    logger.info(f"Banco sem resultados para q={q!r} — fallback para API da Câmara")
-    itens_camara = max(por_pagina, 50)
-    data_inicio = f"{ano}-01-01" if ano else None
-    data_fim    = f"{ano}-12-31" if ano else None
+    # Banco insuficiente — busca mais da API da Câmara
+    logger.info(f"Banco com {total_banco} projetos (< {_HOME_MIN}) — buscando da API da Câmara")
     try:
         raw = await camara.listar_proposicoes(
-            siglaTipo=tipo,
-            dataApresentacaoInicio=data_inicio,
-            dataApresentacaoFim=data_fim,
-            keywords=q,
-            pagina=pagina,
-            itens=itens_camara,
+            pagina=1,
+            itens=_CAMARA_MAX_ITENS,
         )
     except Exception as e:
-        logger.error(f"Erro ao consultar API da Câmara: {e}")
-        raise HTTPException(status_code=503, detail=f"API da Câmara indisponível: {e}")
-
-    proposicoes = raw.get("dados", [])
-
-    async def _buscar_temas(prop_id: int) -> tuple[int, list[str]]:
-        try:
-            temas_raw = await camara.obter_temas(prop_id)
-            temas = [t.get("tema", "") for t in temas_raw.get("dados", [])]
-            return prop_id, temas
-        except Exception as e:
-            logger.warning(f"Erro ao buscar temas da proposição {prop_id}: {e}")
-            return prop_id, []
-
-    tasks = [_buscar_temas(p.get("id")) for p in proposicoes if p.get("id")]
-    temas_por_id = {}
-    if tasks:
-        resultados = await asyncio.gather(*tasks)
-        temas_por_id = {pid: temas for pid, temas in resultados}
-
-    resultado = []
-    for p in proposicoes:
-        temas = temas_por_id.get(p.get("id"), [])
-        ods_list = ods_classifier.classificar(p.get("ementa", ""), temas)
-
-        _status  = p.get("statusProposicao") or {}
-        _autores = p.get("autores") or []
-        _sigla   = p.get("siglaTipo", "")
-        _numero  = p.get("numero", "")
-        _ano     = p.get("ano", "")
-
-        item = {
-            "id":                p.get("id"),
-            "external_id":       str(p.get("id", "")),
-            "ementa":            p.get("ementa"),
-            "headline":          None,
-            "urlInteiroTeor":    p.get("urlInteiroTeor"),
-            "titulo":            f"{_sigla} {_numero} / {_ano}".strip(),
-            "situacao":          _status.get("descricaoSituacao", ""),
-            "autor":             ", ".join(a["nome"] for a in _autores if a.get("nome")) or "Não informado",
-            "tipo":              _sigla,
-            "ano":               _ano,
-            "data_apresentacao": p.get("dataApresentacao"),
-            "ods":               ods_list,
-            "temas":             temas,
-            "estagio_atual":     _inferir_estagio(_status.get("descricaoSituacao", "")),
-            "estagios":          ESTAGIOS,
+        logger.warning(f"Falha na API da Câmara, usando banco parcial: {e}")
+        resultado = [_projeto_para_item(p) for p in local]
+        return {
+            "dados": resultado,
+            "total": total_banco,
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "fonte": "banco_local",
         }
-        if ods is None or any(o["numero"] == ods for o in ods_list):
-            resultado.append(item)
 
+    proposicoes_camara = raw.get("dados", [])
+
+    if proposicoes_camara:
+        # Persiste novos projetos no banco (auto-popula para próximas chamadas)
+        _persistir_do_camara(db, proposicoes_camara, {})
+
+    # Monta resposta: banco (com headline) + Câmara (sem duplicatas)
+    ids_banco = {p.external_id for p in local}
+    resultado = [_projeto_para_item(p) for p in local]
+
+    for p in proposicoes_camara:
+        ext_id = str(p.get("id", ""))
+        if ext_id in ids_banco:
+            continue
+        item = _camara_para_item(p, [])
+        resultado.append(item)
+        ids_banco.add(ext_id)
+        if len(resultado) >= por_pagina:
+            break
+
+    total_estimado = max(total_banco + len(proposicoes_camara), len(resultado))
     return {
         "dados": resultado,
-        "total": len(resultado),
+        "total": total_estimado,
         "pagina": pagina,
         "por_pagina": por_pagina,
-        "fonte": "camara_api",
-        "erro_upstream": raw.get("erro_upstream"),
+        "fonte": "hibrido",
     }
 
 
