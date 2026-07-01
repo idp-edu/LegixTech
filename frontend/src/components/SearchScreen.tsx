@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useProjectSearch } from '@/hooks/useProjectSearch';
-import type { Politician } from '@/data/mockPoliticians';
+import type { Politician } from '@/types/politician';
 import { ProjectCard } from './ProjectCard';
 
 const ODS_LIST = [

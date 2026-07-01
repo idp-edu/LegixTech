@@ -6,25 +6,36 @@ import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { useApp } from '@/context/AppContext';
 import { politiciansService } from '@/services/politiciansService';
-import type { Politician } from '@/data/mockPoliticians';
+import type { Politician } from '@/types/politician'; // ← importa do tipo correto, não do mock
 import type { ApiPolitician } from '@/types/politician';
 
 function mapParaPolitician(p: ApiPolitician): Politician {
+  // Fallback duplo: suporta campos em português (nome/partido/estado/foto)
+  // e em inglês (name/party/state/photo_url) para cobrir ambos os schemas da API
+  const name  = p.nome      ?? p.name      ?? '';
+  const party = p.partido   ?? p.party     ?? '';
+  const state = p.estado    ?? p.state     ?? '';
+  const photo = p.foto      ?? p.photo_url ?? undefined;
+
+  if (!name) {
+    console.warn('[search.tsx] Parlamentar sem nome recebido da API:', JSON.stringify(p));
+  }
+
   return {
-    id: p.external_id ?? String(p.id ?? ''),
-    name: p.nome ?? '',
-    party: p.partido ?? '',
-    state: p.estado ?? '',
+    id:    p.external_id ?? String(p.id ?? ''),
+    name,
+    party,
+    state,
     house: (p.casa === 'Senado' ? 'Senado' : 'Câmara') as 'Senado' | 'Câmara',
-    photo: p.foto ?? undefined,
-    bio: '',
+    photo,
+    bio:   '',
     stats: {
-      totalVotes: 0,
-      votesInFavor: 0,
-      votesAgainst: 0,
-      abstentions: 0,
+      totalVotes:        0,
+      votesInFavor:      0,
+      votesAgainst:      0,
+      abstentions:       0,
       projectsPresented: 0,
-      attendance: 0,
+      attendance:        0,
     },
   };
 }
@@ -56,8 +67,8 @@ export default function SearchTab() {
   } = useApp();
 
   const [politicians, setPoliticians] = useState<Politician[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
 
   const carregar = async () => {
     setLoading(true);
@@ -78,7 +89,7 @@ export default function SearchTab() {
   useEffect(() => { carregar(); }, []);
 
   if (loading) return <LoadingState message="Carregando parlamentares..." />;
-  if (error) return <ErrorState message={error} onRetry={carregar} />;
+  if (error)   return <ErrorState message={error} onRetry={carregar} />;
 
   const handleToggleSavePolitician = async (id: string) => {
     if (isGuest || !isAuthenticated) {
@@ -89,14 +100,14 @@ export default function SearchTab() {
     try {
       if (jaSeguindo) {
         await politiciansService.deixarDeSeguir(id);
-        showToastMsg('Deixou de seguir parlamentar');
+        showToastMsg('Deixou de seguir parlamentar', 'success');
       } else {
         await politiciansService.seguir(id);
-        showToastMsg('Seguindo parlamentar!');
+        showToastMsg('Seguindo parlamentar!', 'success');
       }
       toggleSavePolitician(id);
     } catch {
-      showToastMsg('Erro ao atualizar. Tente novamente.');
+      showToastMsg('Erro ao atualizar. Tente novamente.', 'error'); // ← fix issue #39
     }
   };
 
