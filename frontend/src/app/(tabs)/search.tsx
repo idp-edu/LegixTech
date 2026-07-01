@@ -6,7 +6,7 @@ import { LoadingState } from '@/components/LoadingState';
 import { ErrorState } from '@/components/ErrorState';
 import { useApp } from '@/context/AppContext';
 import { politiciansService } from '@/services/politiciansService';
-import type { Politician } from '@/types/politician'; // ← importa do tipo correto, não do mock
+import type { Politician } from '@/types/politician';
 import type { ApiPolitician } from '@/types/politician';
 
 function mapParaPolitician(p: ApiPolitician): Politician {
@@ -26,7 +26,7 @@ function mapParaPolitician(p: ApiPolitician): Politician {
     name,
     party,
     state,
-    house: (p.casa === 'Senado' ? 'Senado' : 'Câmara') as 'Senado' | 'Câmara',
+    house: ((p.house ?? p.casa) === 'Senado' ? 'Senado' : 'Câmara') as 'Senado' | 'Câmara',
     photo,
     bio:   '',
     stats: {
@@ -107,7 +107,7 @@ export default function SearchTab() {
       }
       toggleSavePolitician(id);
     } catch {
-      showToastMsg('Erro ao atualizar. Tente novamente.', 'error'); // ← fix issue #39
+      showToastMsg('Erro ao atualizar. Tente novamente.', 'error');
     }
   };
 

@@ -8,7 +8,8 @@ export interface ApiPolitician {
   party?:      string | null;
   estado?:     string | null;
   state?:      string | null;
-  casa?:       string;
+  casa?:       string;   // legado
+  house?:      string;   // campo atual retornado pelo backend
   foto?:       string | null;
   photo_url?:  string | null;
 }
