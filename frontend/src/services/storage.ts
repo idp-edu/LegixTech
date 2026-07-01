@@ -67,3 +67,30 @@ export async function getSavedPoliticians(): Promise<string[]> {
 export async function saveSavedPoliticians(ids: string[]) {
   await AsyncStorage.setItem(SAVED_POLITICIANS_KEY, JSON.stringify(ids));
 }
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+const ONBOARDING_KEY = 'legixtech:onboarding_completed';
+let _onboardingMemoryFallback = false;
+
+export async function getOnboardingCompleted(): Promise<boolean> {
+  if (_onboardingMemoryFallback) return true;
+  try {
+    const v = await AsyncStorage.getItem(ONBOARDING_KEY);
+    return v === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export async function setOnboardingCompleted(value: boolean) {
+  _onboardingMemoryFallback = value;
+  try {
+    if (value) {
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+    } else {
+      await AsyncStorage.removeItem(ONBOARDING_KEY);
+    }
+  } catch {
+    console.warn('[storage] Não foi possível persistir onboarding_completed — usando fallback em memória');
+  }
+}

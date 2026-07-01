@@ -1,4 +1,5 @@
 import { useApp } from '@/context/AppContext';
+import { setOnboardingCompleted } from '@/services/storage';
 
 import { ChatbotDrawer } from './ChatbotDrawer';
 import { DailyDigestStories } from './DailyDigestStories';
@@ -23,12 +24,17 @@ export function AppOverlays() {
 
   const isProjectContext = chatbotContext !== 'projeto de lei';
 
+  const handleOnboardingDone = async () => {
+    await setOnboardingCompleted(true);
+    setShowOnboarding(false);
+  };
+
   return (
     <>
       <OnboardingOverlay
         isVisible={showOnboarding}
-        onComplete={() => setShowOnboarding(false)}
-        onSkip={() => setShowOnboarding(false)}
+        onComplete={handleOnboardingDone}
+        onSkip={handleOnboardingDone}
       />
       <DailyDigestStories
         isOpen={showDigestStories}

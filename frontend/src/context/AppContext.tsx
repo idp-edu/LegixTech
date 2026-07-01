@@ -22,6 +22,8 @@ import {
   saveRecentProjects,
   getSavedPoliticians,
   saveSavedPoliticians,
+  getOnboardingCompleted,  
+  setOnboardingCompleted,  
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
@@ -58,6 +60,7 @@ interface AppContextValue {
   toggleSavePolitician: (id: string) => void;
   removePolitician: (id: string) => void;
   setShowOnboarding: (v: boolean) => void;
+  restartOnboarding: () => Promise<void>; 
   setShowDigestStories: (v: boolean) => void;
   openChatbot: (context?: string) => void;
   closeChatbot: () => void;
@@ -109,13 +112,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
-      const [storedToken, storedUser, storedSaved, storedRecent, storedPoliticians] = await Promise.all([
-        getToken(),
-        getUser<AuthUser>(),
-        getSavedProjects(),
-        getRecentProjects(),
-        getSavedPoliticians(),
-      ]);
+
+      const [storedToken, storedUser, storedSaved, storedRecent, storedPoliticians] =
+        await Promise.all([
+          getToken(),
+          getUser<AuthUser>(),
+          getSavedProjects(),
+          getRecentProjects(),
+          getSavedPoliticians(),
+          getOnboardingCompleted(), 
+        ]);
 
       setSavedProjects(storedSaved);
       setRecentProjects(storedRecent);
@@ -183,11 +189,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
         mode: 'password',
       });
-      setShowOnboarding(true);
+      const alreadySeen = await getOnboardingCompleted(); 
+      if (!alreadySeen) setShowOnboarding(true);          
     },
     [persistSession],
   );
 
+  // ↓ Idem para Google
   const loginWithGoogle = useCallback(
     async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
       await persistSession({
@@ -195,7 +203,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: nextUser ? { ...nextUser, provider: 'google' } : { provider: 'google' },
         mode: 'google',
       });
-      setShowOnboarding(true);
+      const alreadySeen = await getOnboardingCompleted(); 
+      if (!alreadySeen) setShowOnboarding(true);          
     },
     [persistSession],
   );
@@ -207,6 +216,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
         mode: 'password',
       });
+      await setOnboardingCompleted(false);
       setShowOnboarding(true);
     },
     [persistSession],
@@ -273,7 +283,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
     } catch {
-      // Não atualiza o estado local se o backend falhou
+
     }
   }, [savedProjects]);
 
@@ -300,6 +310,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       saveSavedPoliticians(next);
       return next;
     });
+  }, []);
+
+  const restartOnboarding = useCallback(async () => {
+    await setOnboardingCompleted(false);
+    setShowOnboarding(true);
   }, []);
 
   const openChatbot = useCallback((context = 'projeto de lei') => {
@@ -348,6 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleSavePolitician,
     removePolitician,
     setShowOnboarding,
+    restartOnboarding,        
     setShowDigestStories,
     openChatbot,
     closeChatbot,

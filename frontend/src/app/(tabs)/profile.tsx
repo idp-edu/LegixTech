@@ -5,7 +5,7 @@ import { useApp } from '@/context/AppContext';
 
 export default function ProfileTab() {
   const router = useRouter();
-  const { logout, setShowOnboarding } = useApp();
+  const { logout, restartOnboarding } = useApp(); 
 
   return (
     <ProfileScreen
@@ -13,7 +13,7 @@ export default function ProfileTab() {
         await logout();
         router.replace('/welcome' as never);
       }}
-      onRestartTutorial={() => setShowOnboarding(true)}
+      onRestartTutorial={restartOnboarding} 
       onNavigateToSaved={() => router.push('/(tabs)/saved' as never)}
     />
   );
