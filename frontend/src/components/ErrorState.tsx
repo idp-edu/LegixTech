@@ -2,12 +2,19 @@ import { Pressable, Text, View } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
 
 interface ErrorStateProps {
-  message?: string;
+  message?: unknown; // aceita unknown para ser resiliente a erros de tipagem
   onRetry?: () => void;
 }
 
-export function ErrorState({ message = 'Não foi possível carregar os dados.', onRetry }: ErrorStateProps) {
+export function ErrorState({ message, onRetry }: ErrorStateProps) {
   const { colors } = useTheme();
+
+  // Guard defensivo: normaliza qualquer tipo para string segura
+  const safeMessage =
+    typeof message === 'string' && message.length > 0
+      ? message
+      : 'Não foi possível carregar os dados.';
+
   return (
     <View
       style={{
@@ -24,7 +31,7 @@ export function ErrorState({ message = 'Não foi possível carregar os dados.', 
         Algo deu errado
       </Text>
       <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-        {message}
+        {safeMessage}
       </Text>
       {onRetry && (
         <Pressable
