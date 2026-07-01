@@ -20,7 +20,7 @@ interface DailySummary {
 
 interface HomeFeedProps {
   projects: UiProject[];
-  isLoading?: boolean;       // ← ADICIONADO
+  isLoading?: boolean;
   savedProjects: string[];
   recentProjects: string[];
   dailySummary?: DailySummary | null;
@@ -31,8 +31,6 @@ interface HomeFeedProps {
   onToggleTheme: () => void;
   onDigestClick?: () => void;
 }
-
-// ─── Skeleton de card ─────────────────────────────────────────────────────────
 
 function ProjectCardSkeleton() {
   const { colors } = useTheme();
@@ -49,11 +47,9 @@ function ProjectCardSkeleton() {
   );
 }
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 export function HomeFeed({
   projects,
-  isLoading = false,         // ← ADICIONADO (padrão false)
+  isLoading = false,
   savedProjects,
   recentProjects,
   dailySummary,
@@ -67,18 +63,17 @@ export function HomeFeed({
   const { colors } = useTheme();
 
   const stats = dailySummary?.estatisticas;
-  const emTramitacao       = stats?.em_tramitacao       ?? 0;
-  const aguardandoVotacao  = stats?.aguardando_votacao  ?? 0;
-  const aprovados          = stats?.aprovados           ?? 0;
-
-  // ← REMOVIDO: const isLoading = projects.length === 0;
+  const emTramitacao      = stats?.em_tramitacao      ?? 0;
+  const aguardandoVotacao = stats?.aguardando_votacao ?? 0;
+  const aprovados         = stats?.aprovados          ?? 0;
 
   const recentList = recentProjects
     .map((id) => projects.find((p) => p.id === id))
     .filter((p): p is UiProject => p !== undefined);
 
-  const recentIds   = new Set(recentProjects);
-  const generalList = projects.filter((p) => !recentIds.has(p.id));
+  // ✅ CORREÇÃO: mostra TODOS os projetos em "Em Destaque",
+  // não apenas os que o usuário nunca visitou
+  const generalList = projects;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -183,20 +178,18 @@ export function HomeFeed({
           </>
         )}
 
-        {/* ── Lista geral / Skeleton / Empty state ─────────────────────── */}
+        {/* ── Em Destaque / Skeleton / Empty state ─────────────────────── */}
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
           {recentList.length > 0 ? 'Em Destaque' : 'Atividade Recente'}
         </Text>
 
         {isLoading ? (
-          // Skeleton — só exibido quando pai passa isLoading=true
           <>
             <ProjectCardSkeleton />
             <ProjectCardSkeleton />
             <ProjectCardSkeleton />
           </>
         ) : generalList.length === 0 ? (
-          // ← ADICIONADO: empty state real — nunca mais skeleton infinito
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
             <Text style={{ fontSize: 40 }}>📋</Text>
             <Text style={{ color: colors.text, fontWeight: '600', fontSize: 16 }}>
