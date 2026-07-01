@@ -1,3 +1,4 @@
+// frontend/src/context/AppContext.tsx
 import React, {
   createContext,
   useCallback,
@@ -22,13 +23,13 @@ import {
   saveRecentProjects,
   getSavedPoliticians,
   saveSavedPoliticians,
-  getOnboardingCompleted,  
-  setOnboardingCompleted,  
+  getOnboardingCompleted,
+  setOnboardingCompleted,
 } from '@/services/storage';
 import type { AuthMode, AuthUser } from '@/types/auth';
 import { API_URL } from '@/config/env';
 import { fetchSavedProjectIds } from '@/services/savedService';
-import type { ToastType } from '@/components/Toast'; // ← NOVO
+import type { ToastType } from '@/components/Toast';
 
 interface AppContextValue {
   isAuthenticated: boolean;
@@ -45,7 +46,7 @@ interface AppContextValue {
   showChatbot: boolean;
   chatbotContext: string;
   toastMessage: string;
-  toastType: ToastType; // ← NOVO
+  toastType: ToastType;
   showToast: boolean;
   loginWithPassword: (payload: { token: string; user?: AuthUser }) => Promise<void>;
   loginWithGoogle: (payload: { token: string; user?: AuthUser }) => Promise<void>;
@@ -60,11 +61,11 @@ interface AppContextValue {
   toggleSavePolitician: (id: string) => void;
   removePolitician: (id: string) => void;
   setShowOnboarding: (v: boolean) => void;
-  restartOnboarding: () => Promise<void>; 
+  restartOnboarding: () => Promise<void>;
   setShowDigestStories: (v: boolean) => void;
   openChatbot: (context?: string) => void;
   closeChatbot: () => void;
-  showToastMsg: (message: string, type?: ToastType) => void; // ← ATUALIZADO
+  showToastMsg: (message: string, type?: ToastType) => void;
   hideToast: () => void;
 }
 
@@ -93,7 +94,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatbotContext, setChatbotContext] = useState('projeto de lei');
   const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<ToastType>('success'); // ← NOVO
+  const [toastType, setToastType] = useState<ToastType>('success');
   const [showToast, setShowToast] = useState(false);
 
   const validateToken = async (storedToken: string): Promise<boolean> => {
@@ -112,7 +113,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrate = async () => {
-
       const [storedToken, storedUser, storedSaved, storedRecent, storedPoliticians] =
         await Promise.all([
           getToken(),
@@ -120,7 +120,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           getSavedProjects(),
           getRecentProjects(),
           getSavedPoliticians(),
-          getOnboardingCompleted(), 
+          getOnboardingCompleted(),
         ]);
 
       setSavedProjects(storedSaved);
@@ -175,6 +175,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUserState(nextUser);
     await Promise.all([saveToken(payload.token), saveUser(nextUser)]);
 
+    // ✅ CORREÇÃO: limpa histórico de navegação ao trocar/fazer login de conta
+    setRecentProjects([]);
+    await saveRecentProjects([]);
+
     const backendIds = await fetchSavedProjectIds();
     if (backendIds.length > 0) {
       setSavedProjects(backendIds);
@@ -189,13 +193,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: nextUser ? { ...nextUser, provider: 'password' } : { provider: 'password' },
         mode: 'password',
       });
-      const alreadySeen = await getOnboardingCompleted(); 
-      if (!alreadySeen) setShowOnboarding(true);          
+      const alreadySeen = await getOnboardingCompleted();
+      if (!alreadySeen) setShowOnboarding(true);
     },
     [persistSession],
   );
 
-  // ↓ Idem para Google
   const loginWithGoogle = useCallback(
     async ({ token: nextToken, user: nextUser }: { token: string; user?: AuthUser }) => {
       await persistSession({
@@ -203,8 +206,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user: nextUser ? { ...nextUser, provider: 'google' } : { provider: 'google' },
         mode: 'google',
       });
-      const alreadySeen = await getOnboardingCompleted(); 
-      if (!alreadySeen) setShowOnboarding(true);          
+      const alreadySeen = await getOnboardingCompleted();
+      if (!alreadySeen) setShowOnboarding(true);
     },
     [persistSession],
   );
@@ -228,6 +231,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUserState(null);
     setSavedProjects([]);
     setSavedPoliticians([]);
+    // ✅ CORREÇÃO: também limpa recentes ao entrar como visitante
+    setRecentProjects([]);
     setShowOnboarding(false);
     setShowChatbot(false);
   }, []);
@@ -324,7 +329,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const closeChatbot = useCallback(() => setShowChatbot(false), []);
 
-  // ← ATUALIZADO: aceita e repassa o type
   const showToastMsg = useCallback((message: string, type: ToastType = 'success') => {
     setToastMessage(message);
     setToastType(type);
@@ -348,7 +352,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showChatbot,
     chatbotContext,
     toastMessage,
-    toastType,  // ← NOVO
+    toastType,
     showToast,
     loginWithPassword,
     loginWithGoogle,
@@ -363,7 +367,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleSavePolitician,
     removePolitician,
     setShowOnboarding,
-    restartOnboarding,        
+    restartOnboarding,
     setShowDigestStories,
     openChatbot,
     closeChatbot,
