@@ -76,6 +76,7 @@ export default function HomeTab() {
   return (
     <HomeFeed
       projects={projects}
+      isLoading={loading} 
       savedProjects={savedProjects}
       recentProjects={recentProjects}
       dailySummary={dailySummary}

@@ -20,12 +20,13 @@ interface DailySummary {
 
 interface HomeFeedProps {
   projects: UiProject[];
+  isLoading?: boolean;       // ← ADICIONADO
   savedProjects: string[];
   recentProjects: string[];
   dailySummary?: DailySummary | null;
   onProjectClick: (id: string) => void;
   onToggleSave: (id: string) => void;
-  onKpiClick?: (filter: 'active' | 'pending' | 'approved') => void; // ← novo
+  onKpiClick?: (filter: 'active' | 'pending' | 'approved') => void;
   isDark: boolean;
   onToggleTheme: () => void;
   onDigestClick?: () => void;
@@ -52,6 +53,7 @@ function ProjectCardSkeleton() {
 
 export function HomeFeed({
   projects,
+  isLoading = false,         // ← ADICIONADO (padrão false)
   savedProjects,
   recentProjects,
   dailySummary,
@@ -65,17 +67,17 @@ export function HomeFeed({
   const { colors } = useTheme();
 
   const stats = dailySummary?.estatisticas;
-  const emTramitacao = stats?.em_tramitacao ?? 0;
-  const aguardandoVotacao = stats?.aguardando_votacao ?? 0;
-  const aprovados = stats?.aprovados ?? 0;
+  const emTramitacao       = stats?.em_tramitacao       ?? 0;
+  const aguardandoVotacao  = stats?.aguardando_votacao  ?? 0;
+  const aprovados          = stats?.aprovados           ?? 0;
 
-  const isLoading = projects.length === 0;
+  // ← REMOVIDO: const isLoading = projects.length === 0;
 
   const recentList = recentProjects
     .map((id) => projects.find((p) => p.id === id))
     .filter((p): p is UiProject => p !== undefined);
 
-  const recentIds = new Set(recentProjects);
+  const recentIds   = new Set(recentProjects);
   const generalList = projects.filter((p) => !recentIds.has(p.id));
 
   return (
@@ -181,17 +183,29 @@ export function HomeFeed({
           </>
         )}
 
-        {/* ── Lista geral / Skeleton ────────────────────────────────────── */}
+        {/* ── Lista geral / Skeleton / Empty state ─────────────────────── */}
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.text }}>
           {recentList.length > 0 ? 'Em Destaque' : 'Atividade Recente'}
         </Text>
 
         {isLoading ? (
+          // Skeleton — só exibido quando pai passa isLoading=true
           <>
             <ProjectCardSkeleton />
             <ProjectCardSkeleton />
             <ProjectCardSkeleton />
           </>
+        ) : generalList.length === 0 ? (
+          // ← ADICIONADO: empty state real — nunca mais skeleton infinito
+          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
+            <Text style={{ fontSize: 40 }}>📋</Text>
+            <Text style={{ color: colors.text, fontWeight: '600', fontSize: 16 }}>
+              Nenhum projeto encontrado
+            </Text>
+            <Text style={{ color: colors.textMuted, fontSize: 14, textAlign: 'center' }}>
+              Nenhum projeto legislativo disponível no momento.
+            </Text>
+          </View>
         ) : (
           generalList.map((project) => (
             <ProjectCard
