@@ -86,30 +86,43 @@ def _projeto_para_item(p: Project) -> dict:
 
 def _camara_para_item(p: dict, temas: list) -> dict:
     """Converte um item bruto da API da Câmara em dict de resposta."""
-    _status  = p.get("statusProposicao") or {}
-    _autores = p.get("autores") or []
-    _sigla   = p.get("siglaTipo", "")
-    _numero  = p.get("numero", "")
-    _ano     = p.get("ano", "")
-    ods_list = ods_classifier.classificar(p.get("ementa", ""), temas)
+    _status   = p.get("statusProposicao") or {}
+    _autores  = p.get("autores") or []
+    _sigla    = p.get("siglaTipo", "")
+    _numero   = p.get("numero", "")
+    _ano      = p.get("ano", "")
+    _situacao = _status.get("descricaoSituacao", "")
+
+    # Headline semântica com dados disponíveis na listagem
+    # (a API da Câmara NÃO retorna 'ementa' no endpoint /proposicoes)
+    _autor_principal = next(
+        (a["nome"] for a in _autores if a.get("nome")), None
+    )
+    if _autor_principal:
+        headline = f"{_sigla} {_numero}/{_ano} – {_autor_principal}"
+    else:
+        headline = f"{_sigla} {_numero}/{_ano}" + (f" – {_situacao}" if _situacao else "")
+
+    _ementa  = p.get("ementa") or ""
+    ods_list = ods_classifier.classificar(_ementa, temas)
+
     return {
         "id":                p.get("id"),
         "external_id":       str(p.get("id", "")),
-        "ementa":            p.get("ementa"),
-        "headline":          None,
+        "ementa":            _ementa or None,
+        "headline":          headline,
         "urlInteiroTeor":    p.get("urlInteiroTeor"),
         "titulo":            f"{_sigla} {_numero} / {_ano}".strip(),
-        "situacao":          _status.get("descricaoSituacao", ""),
+        "situacao":          _situacao,
         "autor":             ", ".join(a["nome"] for a in _autores if a.get("nome")) or "Não informado",
         "tipo":              _sigla,
         "ano":               _ano,
         "data_apresentacao": p.get("dataApresentacao"),
         "ods":               ods_list,
         "temas":             temas,
-        "estagio_atual":     _inferir_estagio(_status.get("descricaoSituacao", "")),
+        "estagio_atual":     _inferir_estagio(_situacao),
         "estagios":          ESTAGIOS,
     }
-
 
 async def _buscar_temas_camara(prop_id: int) -> tuple:
     try:
