@@ -24,18 +24,16 @@ export default function ProjectDetailScreen() {
     setLoading(true);
     setError(null);
 
-    // Busca detalhe e tramitação em paralelo
     Promise.all([
       projectsService.detalhar(projectId),
-      projectsService.tramitacao(projectId).catch(() => ({ tramitacoes: [] })),
+      projectsService.tramitacao(projectId).catch(() => ({ estagio_atual: 1, estagios: [], historico: [] })),
     ])
       .then(([data, tramData]) => {
         const uiProject = mapApiProjectToUiProject(data);
 
-        // Mapeia tramitações para o formato TimelineEvent
-        const timeline: TimelineEvent[] = (tramData.tramitacoes ?? []).map((t) => ({
-          date: t.data ?? '',
-          label: t.descricao ?? t.etapa ?? '',
+        const timeline: TimelineEvent[] = tramData.historico.map((t) => ({
+          date: t.dataHora ?? '',
+          label: t.situacao ?? t.despacho ?? '',
         }));
 
         setProject({ ...uiProject, timeline });

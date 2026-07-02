@@ -32,6 +32,18 @@ export interface Estatisticas {
   por_situacao: Record<string, number>;
 }
 
+export interface TramitacaoResponse {
+  estagio_atual: number;
+  estagios: { id: number; nome: string }[];
+  historico: {
+    dataHora: string;
+    situacao: string;
+    despacho?: string;
+    orgao?: string;
+    estagio: number;
+  }[];
+}
+
 function buildQuery(params: Record<string, string | number | undefined>): string {
   const searchParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -67,8 +79,8 @@ export const projectsService = {
     return api.get<Project>(`/projetos/${external_id}/`);
   },
 
-  tramitacao: (external_id: string): Promise<{ tramitacoes: { data: string; descricao: string; etapa?: string }[] }> => {
-    return api.get(`/projetos/${external_id}/tramitacao/`);
+  tramitacao: (external_id: string): Promise<TramitacaoResponse> => {
+    return api.get<TramitacaoResponse>(`/projetos/${external_id}/tramitacao/`);
   },
 };
 
