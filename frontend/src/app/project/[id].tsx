@@ -27,8 +27,9 @@ export default function ProjectDetailScreen() {
     Promise.all([
       projectsService.detalhar(projectId),
       projectsService.tramitacao(projectId).catch(() => ({ estagio_atual: 1, estagios: [], historico: [] })),
+      projectsService.resumo(projectId).catch(() => ({ resumo: '', fonte: 'erro' })),
     ])
-      .then(([data, tramData]) => {
+      .then(([data, tramData, resumoData]) => {
         const uiProject = mapApiProjectToUiProject(data);
 
         const timeline: TimelineEvent[] = tramData.historico.map((t) => ({
@@ -36,7 +37,11 @@ export default function ProjectDetailScreen() {
           label: t.situacao ?? t.despacho ?? '',
         }));
 
-        setProject({ ...uiProject, timeline });
+        setProject({
+          ...uiProject,
+          timeline,
+          summary: resumoData.resumo || uiProject.summary,
+        });
       })
       .catch(() => setError('Não foi possível carregar o projeto.'))
       .finally(() => setLoading(false));
